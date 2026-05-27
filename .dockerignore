@@ -1,0 +1,17 @@
+.git
+.gitignore
+.gitattributes
+.github
+.idea
+.claude
+__pycache__/
+*.py[cod]
+*.sqlite3
+.env
+.env.*
+.venv
+venv/
+env/
+staticfiles/
+*.log
+README.md

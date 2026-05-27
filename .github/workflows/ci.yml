@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: pip install ruff==0.15.14
+      - run: ruff check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: financial-audit
+          POSTGRES_USER: financial-audit
+          POSTGRES_PASSWORD: financial-audit
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U financial-audit"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DJANGO_DEBUG: "True"
+      DJANGO_SECRET_KEY: "ci-dummy-secret-key-not-for-production"
+      POSTGRES_HOST: localhost
+      POSTGRES_DB: financial-audit
+      POSTGRES_USER: financial-audit
+      POSTGRES_PASSWORD: financial-audit
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python manage.py makemigrations --check --dry-run
+      - run: pytest
