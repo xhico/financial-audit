@@ -36,6 +36,12 @@ if not SECRET_KEY:
         raise ImproperlyConfigured("DJANGO_SECRET_KEY must be set when DEBUG is False")
 
 ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
+# The in-container Docker health check curls the loopback address, so accept it
+# in every environment regardless of the configured public domain
+for loopback_host in ("localhost", "127.0.0.1"):
+    if loopback_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(loopback_host)
+
 CSRF_TRUSTED_ORIGINS = env("DJANGO_CSRF_TRUSTED_ORIGINS")
 
 INSTALLED_APPS = [
@@ -120,6 +126,10 @@ REST_FRAMEWORK = {
 if not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
     SECURE_SSL_REDIRECT = env("DJANGO_SECURE_SSL_REDIRECT")
+    # Exempt the liveness probe so the in-container health check reaches
+    # /health/ over plain HTTP without an HTTPS redirect (it sends no
+    # X-Forwarded-Proto header and uses a localhost Host that is not allowed)
+    SECURE_REDIRECT_EXEMPT = [r"^health/$"]
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = env("DJANGO_SECURE_HSTS_SECONDS")
