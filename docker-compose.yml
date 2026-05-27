@@ -2,6 +2,8 @@ services:
   db:
     image: postgres:18
     restart: unless-stopped
+    labels:
+      - "wud.watch=false"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-financial-audit}
       POSTGRES_USER: ${POSTGRES_USER:-financial-audit}
@@ -63,6 +65,8 @@ services:
     image: postgres:18
     restart: unless-stopped
     profiles: [ "backup" ]
+    labels:
+      - "wud.watch=false"
     environment:
       PGHOST: db
       PGDATABASE: ${POSTGRES_DB:-financial-audit}
