@@ -104,6 +104,65 @@ class Category(models.Model):
         return self.name
 
 
+class CategoryRule(models.Model):
+    """
+    A rule that assigns a category to matching transactions.
+
+    - Matches a case-insensitive substring against the description
+    - Optionally restricts by movement sign and account scope
+    - Lower priority values are applied first; the first match wins
+    """
+
+    class Sign(models.TextChoices):
+        ANY = "any", "Any"
+        CREDIT = "credit", "Credit (money in)"
+        DEBIT = "debit", "Debit (money out)"
+
+    match_text = models.CharField(max_length=120)
+    sign = models.CharField(max_length=6, choices=Sign.choices, default=Sign.ANY)
+    # Blank scope matches any account scope
+    scope = models.CharField(max_length=10, choices=Account.Scope.choices, blank=True)
+    category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="rules")
+    priority = models.IntegerField(default=100)
+
+    class Meta:
+        ordering = ["priority", "id"]
+
+    def __str__(self):
+        """
+        Return a readable label for the rule.
+
+        Args:
+            None
+
+        Returns:
+            str: The match text and the category it assigns
+        """
+
+        return f"{self.match_text!r} -> {self.category}"
+
+    def matches(self, txn):
+        """
+        Decide whether this rule applies to a transaction.
+
+        Args:
+            txn (Transaction): The transaction to test
+
+        Returns:
+            bool: True when the description, sign and scope all match
+        """
+
+        if self.match_text.lower() not in txn.description.lower():
+            return False
+        if self.sign == self.Sign.CREDIT and txn.amount <= 0:
+            return False
+        if self.sign == self.Sign.DEBIT and txn.amount >= 0:
+            return False
+        if self.scope and txn.account.scope != self.scope:
+            return False
+        return True
+
+
 class StatementImport(models.Model):
     """
     A single imported bank-statement PDF.

@@ -4,7 +4,7 @@
 
 from django.contrib import admin
 
-from finance.models import Account, Category, StatementImport, Transaction
+from finance.models import Account, Category, CategoryRule, StatementImport, Transaction
 
 
 @admin.register(Account)
@@ -33,6 +33,20 @@ class CategoryAdmin(admin.ModelAdmin):
     list_display = ("name", "kind", "parent")
     list_filter = ("kind",)
     search_fields = ("name",)
+
+
+@admin.register(CategoryRule)
+class CategoryRuleAdmin(admin.ModelAdmin):
+    """
+    Admin for category rules.
+
+    - Lists the match text, sign, scope, category and priority
+    - Ordered so the highest-priority rules show first
+    """
+
+    list_display = ("match_text", "sign", "scope", "category", "priority")
+    list_filter = ("sign", "scope", "category")
+    search_fields = ("match_text",)
 
 
 @admin.register(StatementImport)

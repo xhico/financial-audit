@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from django.db import transaction
 
-from finance.models import Account, BalanceSnapshot, StatementImport, Transaction
+from finance.models import Account, BalanceSnapshot, CategoryRule, StatementImport, Transaction
 from finance.parsers import parse
 
 # Maps the parser bank key onto a readable bank name for the Account
@@ -141,4 +141,37 @@ def import_statement(text, source_file=""):
             },
         )
 
+    # Classify the statement's transactions so the dashboards see them bucketed
+    classify_transactions(statement.transactions.all())
+
     return ImportResult(statement=statement, created=created, skipped=skipped, accounts=touched_accounts)
+
+
+def classify_transactions(transactions=None):
+    """
+    Assign categories to transactions using the ordered category rules.
+
+    Args:
+        transactions (QuerySet | None): Transactions to classify; all when None
+
+    Returns:
+        int: The number of transactions whose category changed
+    """
+
+    rules = list(CategoryRule.objects.select_related("category"))
+    if not rules:
+        return 0
+
+    queryset = transactions if transactions is not None else Transaction.objects.all()
+
+    updated = 0
+    for txn in queryset.select_related("account"):
+        # The rules are priority-ordered, so the first match wins
+        for rule in rules:
+            if rule.matches(txn):
+                if txn.category_id != rule.category_id:
+                    txn.category_id = rule.category_id
+                    txn.save(update_fields=["category"])
+                    updated += 1
+                break
+    return updated

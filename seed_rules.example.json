@@ -1,0 +1,16 @@
+{
+  "categories": [
+    {"name": "Salary", "kind": "income"},
+    {"name": "Internal transfer", "kind": "transfer"},
+    {"name": "Investment", "kind": "investment"},
+    {"name": "Mortgage", "kind": "expense"},
+    {"name": "Utilities", "kind": "expense"}
+  ],
+  "rules": [
+    {"match_text": "EXAMPLE EMPLOYER", "sign": "credit", "scope": "personal", "category": "Salary", "priority": 10},
+    {"match_text": "EXAMPLE INTERNAL TRANSFER", "sign": "any", "scope": "", "category": "Internal transfer", "priority": 20},
+    {"match_text": "EXAMPLE BROKER", "sign": "any", "scope": "", "category": "Investment", "priority": 20},
+    {"match_text": "EXAMPLE MORTGAGE", "sign": "debit", "scope": "personal", "category": "Mortgage", "priority": 30},
+    {"match_text": "EXAMPLE UTILITY", "sign": "debit", "scope": "", "category": "Utilities", "priority": 40}
+  ]
+}
