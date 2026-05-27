@@ -3,6 +3,12 @@ updates:
   - package-ecosystem: pip
     directory: "/"
     schedule: { interval: weekly }
+    # Stay on the Django LTS line (5.2.x): take security/patch updates but do
+    # not propose major bumps (6.x is not an LTS). Move to the next LTS (6.2)
+    # deliberately by removing this ignore when ready.
+    ignore:
+      - dependency-name: "django"
+        update-types: [ "version-update:semver-major" ]
   - package-ecosystem: docker
     directory: "/"
     schedule: { interval: weekly }
