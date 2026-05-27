@@ -100,8 +100,8 @@ builds the image from the repo on the homelab. Supply the environment from
 
 - `DJANGO_DEBUG=False`
 - a real `DJANGO_SECRET_KEY` and `POSTGRES_PASSWORD`
-- `DJANGO_ALLOWED_HOSTS=financial-audit.n3xus.xhico.xyz`
-- `DJANGO_CSRF_TRUSTED_ORIGINS=https://financial-audit.n3xus.xhico.xyz`
+- `DJANGO_ALLOWED_HOSTS=your-domain.example.com`
+- `DJANGO_CSRF_TRUSTED_ORIGINS=https://your-domain.example.com`
 - `COMPOSE_PROFILES=backup`
 - `POSTGRES_HOST_PORT=127.0.0.1:5432`
 

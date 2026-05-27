@@ -1,0 +1,25 @@
+Extrato Global
+EXAMPLE ACCOUNT HOLDER
+Cliente 000000000 Extrato n.º 005/2026 Emissão 2026-05-08 Período 2026-04-01 a 2026-04-30 Pág 1/2
+Resumo do Extrato
+Património Saldo % Responsabilidades Saldo %
+À Ordem 1.000,00 17,25 Crédito Imobiliário 100.000,00 99,99
+A Prazo/Poupança 5.000,00 82,75 Crédito Pessoal/Automóvel 0,00 0,00
+Instrumentos financeiros 0,00 0,00 Cartões 10,00 0,01
+CONTA EXTRACTO 0000.000000.001
+IBAN PT50000000000000000000002 NIB 000000000000000000002 SWIFT/BIC CGDIPTPL
+Moeda EUR Saldo anterior 1.000,00
+Data Mov. Data Valor Descrição Valor Saldo Contabilístico
+2026-04-01 2026-04-01 EXAMPLE INSURANCE -100,00 900,00
+2026-04-30 2026-04-30 TFI EXAMPLE PAYER 200,00 1.100,00
+Saldo contabilístico 1.100,00
+Saldo disponível 1.100,00
+CONTA EXTRACTO 0000.000000.002
+IBAN PT50000000000000000000003 NIB 000000000000000000003 SWIFT/BIC CGDIPTPL
+Moeda EUR Saldo anterior 500,00
+Data Mov. Data Valor Descrição Valor Saldo Contabilístico
+2026-04-06 2026-04-04 COMPRA EXAMPLE STORE 0000000000 -50,00 450,00
+2026-04-07 2026-04-07 TRF EXAMPLE APP 0000000000 100,00 550,00
+Saldo contabilístico 550,00
+Saldo disponível 550,00
+caixadirecta - 000 000 000 (chamada para a rede fixa nacional)

@@ -1,0 +1,18 @@
+EXTRACTO DE CONTA
+Página 1 de 1
+www.creditoagricola.pt
+Exmos Senhores
+EXAMPLE BUSINESS LDA
+Agência : EXAMPLE BRANCH
+Data de Emissão : 1 de Maio de 2026
+Extracto : 004/2026
+NIB : 0000 0000 00000000000 00 IBAN : PT50 0000 0000 0000 0000 0000 1
+Moeda da Conta : EURO
+CONTA NEGÓCIO Nº: 00000000000
+Data Mov. Data Valor Descritivo Débito Crédito Valor
+Saldo em 31-03-2026 1.000,00
+2026-04-03 2026-04-01 COMPRA EXAMPLE SHOP 0000000/00 100,00 900,00
+2026-04-08 2026-04-08 Trf a crédito SEPA+ EXAMPLE SUPPLIER
+UNIPESSOAL, LDA 50,00 950,00
+2026-04-15 2026-04-15 IPS/000000000-EXAMPLE CLIENT 2.000,00 2.950,00
+Agradecemos que qualquer reclamação seja apresentada no prazo de 30 dias
