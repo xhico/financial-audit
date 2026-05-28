@@ -6,6 +6,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Dashboard{% endblock %} — FinancialAudit</title>
 
+  {# Synchronously apply the saved theme so the page doesn't flash the wrong colours #}
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem("fa-theme");
+        var prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (stored === "dark" || (stored === null && prefersDark)) {
+          document.documentElement.classList.add("dark");
+        }
+      } catch (e) { /* localStorage may be unavailable; ignore */ }
+    })();
+  </script>
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -33,11 +46,17 @@
         <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
         <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
       </nav>
-      <div class="hidden md:flex items-center gap-3 text-sm text-zinc-500 shrink-0">
-        <span class="text-zinc-700 font-medium">{{ request.user.username }}</span>
-        <span class="text-zinc-300">·</span>
-        <a href="/admin/" class="hover:text-zinc-900">Admin</a>
-        <a href="/admin/logout/" class="hover:text-zinc-900">Sign out</a>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun"  xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
+        <div class="hidden md:flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
+          <span class="text-zinc-700 dark:text-zinc-200 font-medium">{{ request.user.username }}</span>
+          <span class="text-zinc-300 dark:text-zinc-700">·</span>
+          <a href="/admin/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Admin</a>
+          <a href="/admin/logout/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Sign out</a>
+        </div>
       </div>
     </div>
   </header>

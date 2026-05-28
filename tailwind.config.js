@@ -5,6 +5,8 @@
  * generated CSS only contains utilities that are actually used.
  */
 module.exports = {
+  // Toggle dark mode by adding `class="dark"` to the <html> element
+  darkMode: "class",
   content: [
     "./finance/templates/**/*.html",
     "./finance/static/finance/**/*.js",

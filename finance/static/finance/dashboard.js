@@ -1,7 +1,8 @@
 /*
  * Author: xhico
  * Date: May 27, 2026
- * Shared dashboard helpers — fetch JSON, format currency, theme Chart.js.
+ * Shared dashboard helpers — fetch JSON, format currency, theme Chart.js,
+ * toggle light/dark mode.
  */
 
 window.dashboard = (function () {
@@ -20,18 +21,18 @@ window.dashboard = (function () {
 
   // Section accent colours — pair with the .tile.* tints
   const accents = {
-    income:     "#10b981",  // emerald-500
-    expense:    "#f43f5e",  // rose-500
-    expenses:   "#f43f5e",
-    savings:    "#8b5cf6",  // violet-500
-    mortgage:   "#f59e0b",  // amber-500
-    investment: "#06b6d4",  // cyan-500
-    investments:"#06b6d4",
-    accent:     "#6366f1",  // indigo-500
-    neutral:    "#71717a",  // zinc-500
+    income:      "#10b981", // emerald-500
+    expense:     "#f43f5e", // rose-500
+    expenses:    "#f43f5e",
+    savings:     "#8b5cf6", // violet-500
+    mortgage:    "#f59e0b", // amber-500
+    investment:  "#06b6d4", // cyan-500
+    investments: "#06b6d4",
+    accent:      "#6366f1", // indigo-500
+    neutral:     "#71717a", // zinc-500
   };
 
-  // Palette for varied category buckets (good contrast on white)
+  // Palette for varied category buckets (good contrast on both themes)
   const palette = [
     "#6366f1", "#10b981", "#f43f5e", "#f59e0b", "#8b5cf6",
     "#06b6d4", "#f97316", "#0ea5e9", "#a855f7", "#3b82f6",
@@ -65,20 +66,44 @@ window.dashboard = (function () {
     container.innerHTML = `<p class="empty">${message}</p>`;
   }
 
-  // Light theme defaults for Chart.js — zinc-500 labels, zinc-200 grid,
-  // dark tooltips with white text
+  function isDark() {
+    return document.documentElement.classList.contains("dark");
+  }
+
+  // Pick chart colours from the current theme so axes and tooltips read well
+  function chartTokens() {
+    if (isDark()) {
+      return {
+        label: "#a1a1aa",  // zinc-400
+        grid:  "#27272a",  // zinc-800
+        tooltipBg:    "#fafafa",
+        tooltipTitle: "#18181b",
+        tooltipBody:  "#52525b",
+      };
+    }
+    return {
+      label: "#71717a",   // zinc-500
+      grid:  "#e4e4e7",   // zinc-200
+      tooltipBg:    "#18181b",
+      tooltipTitle: "#ffffff",
+      tooltipBody:  "#e4e4e7",
+    };
+  }
+
+  // Apply (or re-apply) Chart.js defaults from the current theme
   function themeChartJs() {
     if (!window.Chart) return;
+    const t = chartTokens();
     Chart.defaults.font.family =
       '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
     Chart.defaults.font.size = 12;
-    Chart.defaults.color = "#71717a";
-    Chart.defaults.borderColor = "#e4e4e7";
+    Chart.defaults.color = t.label;
+    Chart.defaults.borderColor = t.grid;
     Chart.defaults.plugins.tooltip.padding = 10;
     Chart.defaults.plugins.tooltip.cornerRadius = 12;
-    Chart.defaults.plugins.tooltip.backgroundColor = "#18181b";
-    Chart.defaults.plugins.tooltip.titleColor = "#ffffff";
-    Chart.defaults.plugins.tooltip.bodyColor = "#e4e4e7";
+    Chart.defaults.plugins.tooltip.backgroundColor = t.tooltipBg;
+    Chart.defaults.plugins.tooltip.titleColor = t.tooltipTitle;
+    Chart.defaults.plugins.tooltip.bodyColor = t.tooltipBody;
     Chart.defaults.plugins.tooltip.titleFont = { weight: "600" };
     Chart.defaults.plugins.tooltip.bodySpacing = 4;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
@@ -90,7 +115,33 @@ window.dashboard = (function () {
     Chart.defaults.elements.point.hoverRadius = 5;
   }
 
+  // Force every Chart instance on the page to redraw with the new defaults
+  function refreshCharts() {
+    if (!window.Chart) return;
+    document.querySelectorAll("canvas").forEach(canvas => {
+      const chart = Chart.getChart(canvas);
+      if (chart) chart.update("none");
+    });
+  }
+
+  function toggleTheme() {
+    const next = !isDark();
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("fa-theme", next ? "dark" : "light"); } catch (e) { /* ignore */ }
+    themeChartJs();
+    refreshCharts();
+  }
+
+  // Wire the toggle button (the inline head script already applied the initial theme)
+  window.addEventListener("DOMContentLoaded", () => {
+    const btn = document.getElementById("theme-toggle");
+    if (btn) btn.addEventListener("click", toggleTheme);
+  });
+
   themeChartJs();
 
-  return { fetchJson, formatCurrency, formatInt, colourFor, palette, accents, emptyMessage };
+  return {
+    fetchJson, formatCurrency, formatInt, colourFor, palette, accents,
+    emptyMessage, toggleTheme, themeChartJs, refreshCharts, isDark,
+  };
 })();
