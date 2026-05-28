@@ -90,19 +90,30 @@ class Command(BaseCommand):
             categories[entry["name"]] = category
 
         created = 0
+        updated = 0
         for entry in data.get("rules", []):
             category = categories.get(entry["category"]) or Category.objects.get(name=entry["category"])
-            _, was_created = CategoryRule.objects.get_or_create(
+            # Treat (match_text, sign, scope) as the rule's natural key. Editing
+            # the category for an existing match in the seed file then updates
+            # the rule in place instead of inserting a duplicate that competes
+            # with the old one at classify time.
+            _, was_created = CategoryRule.objects.update_or_create(
                 match_text=entry["match_text"],
-                category=category,
+                sign=entry.get("sign", CategoryRule.Sign.ANY),
+                scope=entry.get("scope", ""),
                 defaults={
-                    "sign": entry.get("sign", CategoryRule.Sign.ANY),
-                    "scope": entry.get("scope", ""),
+                    "category": category,
                     "priority": entry.get("priority", 100),
                 },
             )
-            created += int(was_created)
+            if was_created:
+                created += 1
+            else:
+                updated += 1
 
         self.stdout.write(
-            self.style.SUCCESS(f"Seeded {len(categories)} categories and {created} new rules from {path.name}.")
+            self.style.SUCCESS(
+                f"Seeded {len(categories)} categories, {created} new rules and "
+                f"{updated} updated rules from {path.name}."
+            )
         )

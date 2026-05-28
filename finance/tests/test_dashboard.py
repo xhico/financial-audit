@@ -185,6 +185,48 @@ def test_dashboard_requires_authentication():
 
 
 @pytest.mark.django_db
+def test_seed_finance_updates_existing_rules_in_place(tmp_path):
+    """
+    Re-seeding with a different category for the same match maps the existing rule
+    to the new category instead of creating a duplicate.
+
+    Args:
+        tmp_path (pathlib.Path): A temporary directory provided by pytest
+
+    Returns:
+        None
+    """
+
+    seed_first = {
+        "categories": [{"name": "Salary", "kind": "income"}],
+        "rules": [{"match_text": "ACME", "sign": "any", "scope": "", "category": "Salary", "priority": 20}],
+    }
+    seed_second = {
+        "categories": [
+            {"name": "Salary", "kind": "income"},
+            {"name": "Internal transfer", "kind": "transfer"},
+        ],
+        "rules": [{"match_text": "ACME", "sign": "any", "scope": "", "category": "Internal transfer", "priority": 20}],
+    }
+
+    first_path = tmp_path / "first.json"
+    second_path = tmp_path / "second.json"
+    import json
+
+    first_path.write_text(json.dumps(seed_first))
+    second_path.write_text(json.dumps(seed_second))
+
+    call_command("seed_finance", file=str(first_path))
+    assert CategoryRule.objects.filter(match_text="ACME").count() == 1
+    assert CategoryRule.objects.get(match_text="ACME").category.name == "Salary"
+
+    call_command("seed_finance", file=str(second_path))
+    # Still exactly one rule; the category moved to the new value
+    assert CategoryRule.objects.filter(match_text="ACME").count() == 1
+    assert CategoryRule.objects.get(match_text="ACME").category.name == "Internal transfer"
+
+
+@pytest.mark.django_db
 def test_seed_finance_loads_example_template():
     """
     Seeding with no private file falls back to the example template.
