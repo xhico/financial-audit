@@ -28,11 +28,11 @@
       data: {
         labels: data.map(r => r.as_of),
         datasets: [
-          { label: "Net worth", data: data.map(r => r.net_worth), borderColor: "#2563eb", backgroundColor: "#2563eb22", fill: true, tension: 0.2 },
+          { label: "Net worth", data: data.map(r => r.net_worth), borderColor: "#6366f1", backgroundColor: "#6366f122", fill: true, tension: 0.2 },
           { label: "Current", data: data.map(r => r.current), borderColor: "#0ea5e9", tension: 0.2 },
-          { label: "Savings", data: data.map(r => r.savings), borderColor: "#16a34a", tension: 0.2 },
-          { label: "Investments", data: data.map(r => r.investments), borderColor: "#7c3aed", tension: 0.2 },
-          { label: "Mortgage", data: data.map(r => -r.mortgage), borderColor: "#dc2626", tension: 0.2 },
+          { label: "Savings", data: data.map(r => r.savings), borderColor: "#10b981", tension: 0.2 },
+          { label: "Investments", data: data.map(r => r.investments), borderColor: "#8b5cf6", tension: 0.2 },
+          { label: "Mortgage", data: data.map(r => -r.mortgage), borderColor: "#ef4444", tension: 0.2 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },

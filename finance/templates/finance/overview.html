@@ -79,9 +79,9 @@
       data: {
         labels: series.map(r => r.as_of),
         datasets: [
-          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#2563eb", backgroundColor: "#2563eb33", tension: 0.2, fill: true },
-          { label: "Savings", data: series.map(r => r.savings), borderColor: "#16a34a", tension: 0.2 },
-          { label: "Mortgage", data: series.map(r => -r.mortgage), borderColor: "#dc2626", tension: 0.2 },
+          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#6366f1", backgroundColor: "#6366f133", tension: 0.2, fill: true },
+          { label: "Savings", data: series.map(r => r.savings), borderColor: "#10b981", tension: 0.2 },
+          { label: "Mortgage", data: series.map(r => -r.mortgage), borderColor: "#ef4444", tension: 0.2 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },

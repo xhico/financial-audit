@@ -5,31 +5,45 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Dashboard{% endblock %} — FinancialAudit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'finance/dashboard.css' %}">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
   <script src="{% static 'finance/dashboard.js' %}" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="{% url 'pages:overview' %}">FinancialAudit</a>
-    <nav class="mainnav">
-      <a href="{% url 'pages:overview' %}">Overview</a>
-      <a href="{% url 'pages:income' %}">Income</a>
-      <a href="{% url 'pages:expenses' %}">Expenses</a>
-      <a href="{% url 'pages:cashflow' %}">Cashflow</a>
-      <a href="{% url 'pages:net-worth' %}">Net worth</a>
-      <a href="{% url 'pages:accounts' %}">Accounts</a>
-      <a href="{% url 'pages:transactions' %}">Transactions</a>
+<div class="app">
+  <aside class="sidebar">
+    <a class="brand" href="{% url 'pages:overview' %}">
+      <span class="brand-mark">€</span>
+      <span>FinancialAudit</span>
+    </a>
+    <nav class="nav">
+      <a href="{% url 'pages:overview' %}" class="{% if request.resolver_match.url_name == 'overview' %}is-active{% endif %}">Overview</a>
+      <a href="{% url 'pages:income' %}" class="{% if request.resolver_match.url_name == 'income' %}is-active{% endif %}">Income</a>
+      <a href="{% url 'pages:expenses' %}" class="{% if request.resolver_match.url_name == 'expenses' %}is-active{% endif %}">Expenses</a>
+      <a href="{% url 'pages:cashflow' %}" class="{% if request.resolver_match.url_name == 'cashflow' %}is-active{% endif %}">Cashflow</a>
+      <a href="{% url 'pages:net-worth' %}" class="{% if request.resolver_match.url_name == 'net-worth' %}is-active{% endif %}">Net worth</a>
+      <a href="{% url 'pages:accounts' %}" class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
+      <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
     </nav>
     <div class="userbar">
-      <span class="user">{{ request.user.username }}</span>
-      <a href="/admin/">Admin</a>
-      <a href="/admin/logout/">Sign out</a>
+      <div class="user">
+        <span class="avatar">{{ request.user.username|slice:":1"|upper }}</span>
+        <span>{{ request.user.username }}</span>
+      </div>
+      <div class="userbar-links">
+        <a href="/admin/">Admin</a>
+        <span>·</span>
+        <a href="/admin/logout/">Sign out</a>
+      </div>
     </div>
-  </header>
-  <main class="content">
+  </aside>
+  <main class="main">
     {% block content %}{% endblock %}
   </main>
+</div>
 </body>
 </html>

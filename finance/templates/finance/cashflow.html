@@ -28,9 +28,9 @@
       data: {
         labels: data.map(r => r.period),
         datasets: [
-          { label: "Income", data: data.map(r => r.income), backgroundColor: "#16a34a" },
-          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#dc2626" },
-          { label: "Net", data: data.map(r => r.net), type: "line", borderColor: "#2563eb", tension: 0.2 },
+          { label: "Income", data: data.map(r => r.income), backgroundColor: "#10b981" },
+          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#ef4444" },
+          { label: "Net", data: data.map(r => r.net), type: "line", borderColor: "#6366f1", tension: 0.2 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },

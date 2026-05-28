@@ -32,7 +32,7 @@
       type: "bar",
       data: {
         labels: data.monthly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: "#16a34a" }],
+        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: "#10b981" }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
@@ -41,7 +41,7 @@
       type: "bar",
       data: {
         labels: data.quarterly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: "#2563eb" }],
+        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: "#6366f1" }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
