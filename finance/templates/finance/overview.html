@@ -10,14 +10,6 @@
 
 <div class="grid grid-cols-12 gap-3">
 
-  <!-- Hero: net worth + sparkline -->
-  <div class="tile col-span-12 md:col-span-6 md:row-span-2 flex flex-col">
-    <div class="tile-label">Net worth</div>
-    <div class="stat-num hero" data-kpi="net_worth">—</div>
-    <div class="stat-sub" data-kpi="net_worth_as_of"></div>
-    <div class="mt-4 flex-1 min-h-[140px]"><canvas id="hero-chart"></canvas></div>
-  </div>
-
   <!-- Section-coloured KPIs by role -->
   <div class="tile business col-span-6 md:col-span-3">
     <div class="tile-label">Business</div>
@@ -121,12 +113,11 @@
     const overview = await d.fetchJson("/api/dashboard/overview/");
     if (overview.net_worth) {
       const nw = overview.net_worth;
-      setKpi("net_worth", d.formatCurrency(nw.net_worth));
-      setKpi("net_worth_as_of", `As of ${nw.as_of}`);
       setKpi("business", d.formatCurrency(nw.business));
       setKpi("house", d.formatCurrency(nw.house));
       setKpi("personal", d.formatCurrency(nw.personal));
       setKpi("savings", d.formatCurrency(nw.savings));
+      document.getElementById("period-label").textContent = `Snapshot ${nw.as_of}`;
     }
     setKpi("mtd_income", d.formatCurrency(overview.month_to_date.income));
     setKpi("mtd_expenses", d.formatCurrency(-overview.month_to_date.expenses));
@@ -137,27 +128,6 @@
     setKpi("count_statements", d.formatInt(overview.counts.statements));
     setKpi("count_transactions", d.formatInt(overview.counts.transactions));
     setKpi("count_uncategorised", d.formatInt(overview.counts.uncategorised));
-
-    const networth = await d.fetchJson("/api/dashboard/net-worth/");
-    if (networth.length) {
-      document.getElementById("period-label").textContent = `${networth[0].as_of} → ${networth[networth.length - 1].as_of}`;
-    }
-    new Chart(document.getElementById("hero-chart"), {
-      type: "line",
-      data: {
-        labels: networth.map(r => r.as_of),
-        datasets: [{
-          label: "Net worth", data: networth.map(r => r.net_worth),
-          borderColor: d.accents.accent, backgroundColor: "rgba(99,102,241,0.10)",
-          tension: 0.3, fill: true, pointRadius: 0,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { display: false }, y: { display: false } },
-      },
-    });
 
     const cashflow = await d.fetchJson("/api/dashboard/cashflow/");
     const recent = cashflow.slice(-12);
