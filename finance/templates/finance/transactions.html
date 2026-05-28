@@ -4,12 +4,19 @@
 
 {% block content %}
 <div class="flex items-end justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900">Transactions</h1>
-  <span class="text-sm text-zinc-500" id="pager-status"></span>
+  <div class="flex items-baseline gap-4 flex-wrap">
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Transactions</h1>
+    <span class="text-sm text-zinc-500" id="pager-status"></span>
+  </div>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="personal">Personal</button>
+  </div>
 </div>
 
 <form class="tile mb-3 flex flex-wrap gap-4 items-end" id="filters" onsubmit="event.preventDefault(); window.loadTxns(1);">
-  <label class="filter-field">Scope
+  <label class="filter-field hidden">Scope
     <select name="scope">
       <option value="">All</option>
       <option value="personal">Personal</option>
@@ -101,6 +108,17 @@
     document.getElementById("next-page").disabled = !data.next;
   };
 
-  window.addEventListener("load", () => window.loadTxns(1));
+  window.addEventListener("load", () => {
+    const scopeSelect = document.querySelector('#filters select[name="scope"]');
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => {
+        document.querySelectorAll("#view-tabs button").forEach(x => x.classList.toggle("is-active", x === b));
+        // Drive the hidden scope filter from the tab and re-fetch
+        scopeSelect.value = b.dataset.view === "all" ? "" : b.dataset.view;
+        window.loadTxns(1);
+      });
+    });
+    window.loadTxns(1);
+  });
 </script>
 {% endblock %}

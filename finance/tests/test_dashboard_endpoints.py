@@ -120,12 +120,18 @@ def test_expenses_endpoint_returns_monthly_and_category(api_client, seeded):
 
     assert response.status_code == 200
     body = response.data
+    assert set(body) == {"all", "business", "personal"}
     # April had 100 in Groceries and 200 in Tax = 300 of money out
-    assert {"period": "2026-04", "total": 300.0} in body["monthly"]
-    categories = {row["category"]: row["total"] for row in body["by_category"]}
+    assert {"period": "2026-04", "total": 300.0} in body["all"]["monthly"]
+    categories = {row["category"]: row["total"] for row in body["all"]["by_category"]}
     assert categories["Groceries"] == 100.0
     assert categories["Tax"] == 200.0
-    assert {"period": "2026-04", "category": "Groceries", "total": 100.0} in body["monthly_by_category"]
+    assert {"period": "2026-04", "category": "Groceries", "total": 100.0} in body["all"]["monthly_by_category"]
+    # Scoped views split the buckets by account scope
+    biz_cats = {row["category"]: row["total"] for row in body["business"]["by_category"]}
+    personal_cats = {row["category"]: row["total"] for row in body["personal"]["by_category"]}
+    assert biz_cats == {"Tax": 200.0}
+    assert personal_cats == {"Groceries": 100.0}
 
 
 @pytest.mark.django_db

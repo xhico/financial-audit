@@ -3,7 +3,14 @@
 {% block title %}Accounts{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Accounts</h1>
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Accounts</h1>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="personal">Personal</button>
+  </div>
+</div>
 
 <div id="account-cards" class="grid grid-cols-12 gap-3 mb-3">
   <div class="tile col-span-12 empty">Loading…</div>
@@ -23,17 +30,27 @@
 </div>
 
 <script>
-  window.addEventListener("load", async () => {
-    const d = window.dashboard;
-    const data = await d.fetchJson("/api/dashboard/accounts/");
+  let allAccounts = [];
+  let currentView = "all";
 
-    // Per-account hero cards
+  function applyView(view) {
+    currentView = view;
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.view === view);
+    });
+    render();
+  }
+
+  function render() {
+    const d = window.dashboard;
+    const visible = currentView === "all" ? allAccounts : allAccounts.filter(a => a.scope === currentView);
+
     const cards = document.getElementById("account-cards");
-    if (!data.length) {
-      cards.innerHTML = '<div class="tile col-span-12 empty">No accounts yet.</div>';
+    if (!visible.length) {
+      cards.innerHTML = '<div class="tile col-span-12 empty">No accounts in this view.</div>';
     } else {
-      cards.innerHTML = data.map(a => {
-        const tone = a.scope === "business" ? "investment" : "accent";
+      cards.innerHTML = visible.map(a => {
+        const tone = a.scope === "business" ? "business" : "accent";
         return `
           <div class="tile ${tone} col-span-12 md:col-span-4">
             <div class="flex items-baseline justify-between">
@@ -47,13 +64,12 @@
       }).join("");
     }
 
-    // Full table
     const tbody = document.getElementById("accounts-tbody");
-    if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts yet.</td></tr>';
+    if (!visible.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts in this view.</td></tr>';
       return;
     }
-    tbody.innerHTML = data.map(a => `
+    tbody.innerHTML = visible.map(a => `
       <tr>
         <td class="font-medium">${a.name}</td>
         <td class="text-zinc-500">${a.bank}</td>
@@ -63,6 +79,15 @@
         <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
         <td class="text-zinc-500">${a.last_movement || "—"}</td>
       </tr>`).join("");
+  }
+
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    allAccounts = await d.fetchJson("/api/dashboard/accounts/");
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => applyView(b.dataset.view));
+    });
+    applyView("all");
   });
 </script>
 {% endblock %}

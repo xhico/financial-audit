@@ -127,9 +127,9 @@ def test_income_endpoint_sums_only_income(api_client):
     response = api_client.get("/api/dashboard/income/")
 
     assert response.status_code == 200
-    # Only the salary counts; the transfer is excluded
-    assert response.data["monthly"] == [{"period": "2026-04", "income": 1000.0}]
-    assert response.data["quarterly"] == [{"period": "2026-Q2", "income": 1000.0}]
+    # The response is now keyed by scope; the "all" view aggregates everything
+    assert response.data["all"]["monthly"] == [{"period": "2026-04", "income": 1000.0}]
+    assert response.data["all"]["quarterly"] == [{"period": "2026-Q2", "income": 1000.0}]
 
 
 @pytest.mark.django_db

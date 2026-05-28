@@ -4,54 +4,61 @@
 
 {% block content %}
 <div class="flex items-end justify-between mb-6 flex-wrap gap-3">
-  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900">Overview</h1>
-  <p class="text-sm text-zinc-500" id="period-label">—</p>
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Overview</h1>
+    <p class="text-sm text-zinc-500 mt-1" id="period-label">—</p>
+  </div>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="personal">Personal</button>
+  </div>
 </div>
 
 <div class="grid grid-cols-12 gap-3">
 
-  <!-- Section-coloured KPIs by role -->
-  <div class="tile business col-span-6 md:col-span-3">
+  <!-- Net-worth role tiles (shown only on the All view) -->
+  <div class="tile business col-span-6 md:col-span-3" data-only="all">
     <div class="tile-label">Business</div>
     <div class="stat-num" data-kpi="business">—</div>
   </div>
-  <div class="tile mortgage col-span-6 md:col-span-3">
+  <div class="tile mortgage col-span-6 md:col-span-3" data-only="all">
     <div class="tile-label">House</div>
     <div class="stat-num" data-kpi="house">—</div>
   </div>
-  <div class="tile personal col-span-6 md:col-span-3">
+  <div class="tile personal col-span-6 md:col-span-3" data-only="all">
     <div class="tile-label">Personal</div>
     <div class="stat-num" data-kpi="personal">—</div>
   </div>
-  <div class="tile savings col-span-6 md:col-span-3">
+  <div class="tile savings col-span-6 md:col-span-3" data-only="all">
     <div class="tile-label">Savings</div>
     <div class="stat-num" data-kpi="savings">—</div>
   </div>
 
-  <!-- Month-to-date row -->
+  <!-- Period totals row (filtered by view) -->
   <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD income</div>
-    <div class="stat-num text-emerald-600 dark:text-emerald-400" data-kpi="mtd_income">—</div>
+    <div class="stat-num text-emerald-600 dark:text-emerald-400" id="mtd-income">—</div>
   </div>
   <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD expenses</div>
-    <div class="stat-num text-rose-600 dark:text-rose-400" data-kpi="mtd_expenses">—</div>
+    <div class="stat-num text-rose-600 dark:text-rose-400" id="mtd-expenses">—</div>
   </div>
   <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD net</div>
-    <div class="stat-num" data-kpi="mtd_net">—</div>
-    <div class="text-xs text-zinc-500 mt-1" data-kpi="mtd_period">—</div>
+    <div class="stat-num" id="mtd-net">—</div>
+    <div class="text-xs text-zinc-500 mt-1" id="mtd-period">—</div>
   </div>
   <div class="tile income col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">YTD income</div>
-    <div class="stat-num" data-kpi="ytd_income">—</div>
+    <div class="stat-num" id="ytd-income">—</div>
   </div>
 
   <!-- Cashflow strip -->
   <div class="tile col-span-12">
     <div class="flex items-baseline justify-between mb-3">
-      <div class="tile-label">Cashflow — last 12 months</div>
-      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:cashflow' %}">View →</a>
+      <div class="tile-label" id="cf-label">Cashflow — last 12 months</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href="{% url 'pages:cashflow' %}">View →</a>
     </div>
     <div class="chart-wrap tall"><canvas id="cashflow-chart"></canvas></div>
   </div>
@@ -60,7 +67,7 @@
   <div class="tile col-span-12 md:col-span-5 flex flex-col">
     <div class="flex items-baseline justify-between mb-3">
       <div class="tile-label">Top spending categories</div>
-      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:expenses' %}">View →</a>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href="{% url 'pages:expenses' %}">View →</a>
     </div>
     <div class="chart-wrap"><canvas id="categories-chart"></canvas></div>
   </div>
@@ -69,7 +76,7 @@
   <div class="tile col-span-12 md:col-span-7 flex flex-col">
     <div class="flex items-baseline justify-between mb-3">
       <div class="tile-label">Recent transactions</div>
-      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:transactions' %}">View all →</a>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href="{% url 'pages:transactions' %}">View all →</a>
     </div>
     <div class="overflow-hidden">
       <table class="table-data" id="recent-table">
@@ -78,11 +85,11 @@
     </div>
   </div>
 
-  <!-- Accounts -->
+  <!-- Accounts (filtered by view) -->
   <div class="tile col-span-12">
     <div class="flex items-baseline justify-between mb-3">
       <div class="tile-label">Accounts</div>
-      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:accounts' %}">View →</a>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href="{% url 'pages:accounts' %}">View →</a>
     </div>
     <table class="table-data">
       <thead><tr><th>Account</th><th>Bank</th><th>Scope</th><th class="num">Balance</th><th>Last movement</th></tr></thead>
@@ -90,48 +97,88 @@
     </table>
   </div>
 
-  <!-- Library row at the bottom -->
   <div class="tile neutral col-span-12">
     <dl class="grid grid-cols-2 md:grid-cols-4 gap-6">
-      <div><dt class="tile-label">Accounts</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_accounts">—</dd></div>
-      <div><dt class="tile-label">Statements imported</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_statements">—</dd></div>
-      <div><dt class="tile-label">Transactions</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_transactions">—</dd></div>
-      <div><dt class="tile-label">Uncategorised</dt><dd class="text-2xl font-semibold tabular-nums text-amber-600 mt-1" data-kpi="count_uncategorised">—</dd></div>
+      <div><dt class="tile-label">Accounts</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 mt-1" id="count-accounts">—</dd></div>
+      <div><dt class="tile-label">Statements imported</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 mt-1" id="count-statements">—</dd></div>
+      <div><dt class="tile-label">Transactions</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 dark:text-zinc-100 mt-1" id="count-transactions">—</dd></div>
+      <div><dt class="tile-label">Uncategorised</dt><dd class="text-2xl font-semibold tabular-nums text-amber-600 dark:text-amber-400 mt-1" id="count-uncategorised">—</dd></div>
     </dl>
   </div>
 
 </div>
 
 <script>
-  window.addEventListener("load", async () => {
+  let cashflowChart = null;
+  let categoriesChart = null;
+  let overviewData = null;
+  let cashflowScopes = {};
+  let expensesScopes = {};
+  let allAccounts = [];
+  let currentView = "all";
+
+  function applyView(view) {
+    currentView = view;
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.view === view);
+    });
+    document.querySelectorAll("[data-only]").forEach(el => {
+      const allowed = el.dataset.only.split(/\s+/);
+      el.classList.toggle("hidden", !allowed.includes(view));
+    });
+    render();
+    refreshTransactions();
+  }
+
+  async function refreshTransactions() {
     const d = window.dashboard;
-
-    const setKpi = (key, value) => {
-      document.querySelectorAll(`[data-kpi="${key}"]`).forEach(el => el.textContent = value);
-    };
-
-    const overview = await d.fetchJson("/api/dashboard/overview/");
-    if (overview.net_worth) {
-      const nw = overview.net_worth;
-      setKpi("business", d.formatCurrency(nw.business));
-      setKpi("house", d.formatCurrency(nw.house));
-      setKpi("personal", d.formatCurrency(nw.personal));
-      setKpi("savings", d.formatCurrency(nw.savings));
-      document.getElementById("period-label").textContent = `Snapshot ${nw.as_of}`;
+    const params = new URLSearchParams({ page_size: 8 });
+    if (currentView !== "all") params.set("scope", currentView);
+    const tbody = document.querySelector("#recent-table tbody");
+    try {
+      const resp = await d.fetchJson("/api/transactions/?" + params.toString());
+      if (!resp.results.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty">No transactions in this view.</td></tr>';
+      } else {
+        tbody.innerHTML = resp.results.map(t => {
+          const amt = parseFloat(t.amount);
+          const catTag = t.category
+            ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
+            : '<span class="tag transfer">uncategorised</span>';
+          const desc = t.description.length > 42 ? t.description.slice(0, 42) + "…" : t.description;
+          return `
+            <tr>
+              <td class="whitespace-nowrap text-zinc-500 text-xs">${t.date}</td>
+              <td>
+                <div class="font-medium">${desc}</div>
+                <div class="text-xs text-zinc-500 mt-0.5">${catTag}</div>
+              </td>
+              <td class="num font-medium ${amt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}">${d.formatCurrency(amt, true)}</td>
+            </tr>`;
+        }).join("");
+      }
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Failed to load transactions.</td></tr>';
     }
-    setKpi("mtd_income", d.formatCurrency(overview.month_to_date.income));
-    setKpi("mtd_expenses", d.formatCurrency(-overview.month_to_date.expenses));
-    setKpi("mtd_net", d.formatCurrency(overview.month_to_date.net));
-    setKpi("mtd_period", `since ${overview.month_to_date.since}`);
-    setKpi("ytd_income", d.formatCurrency(overview.year_to_date.income));
-    setKpi("count_accounts", d.formatInt(overview.counts.accounts));
-    setKpi("count_statements", d.formatInt(overview.counts.statements));
-    setKpi("count_transactions", d.formatInt(overview.counts.transactions));
-    setKpi("count_uncategorised", d.formatInt(overview.counts.uncategorised));
+  }
 
-    const cashflow = await d.fetchJson("/api/dashboard/cashflow/");
-    const recent = (cashflow.all || []).slice(-12);
-    new Chart(document.getElementById("cashflow-chart"), {
+  function render() {
+    const d = window.dashboard;
+    if (!overviewData) return;
+
+    const mtd = overviewData.month_to_date[currentView];
+    const ytd = overviewData.year_to_date[currentView];
+    document.getElementById("mtd-income").textContent   = d.formatCurrency(mtd.income);
+    document.getElementById("mtd-expenses").textContent = d.formatCurrency(-mtd.expenses);
+    document.getElementById("mtd-net").textContent      = d.formatCurrency(mtd.net);
+    document.getElementById("mtd-period").textContent   = `since ${overviewData.month_to_date.since}`;
+    document.getElementById("ytd-income").textContent   = d.formatCurrency(ytd.income);
+
+    // Cashflow strip uses the cashflow scope series
+    const recent = (cashflowScopes[currentView] || []).slice(-12);
+    document.getElementById("cf-label").textContent = `Cashflow — ${currentView === "all" ? "combined" : currentView} — last 12 months`;
+    if (cashflowChart) cashflowChart.destroy();
+    cashflowChart = new Chart(document.getElementById("cashflow-chart"), {
       type: "bar",
       data: {
         labels: recent.map(r => r.period),
@@ -144,9 +191,11 @@
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
     });
 
-    const expenses = await d.fetchJson("/api/dashboard/expenses/");
-    const topCats = [...expenses.by_category].sort((a, b) => b.total - a.total).slice(0, 8);
-    new Chart(document.getElementById("categories-chart"), {
+    // Top categories doughnut
+    const exp = expensesScopes[currentView] || { by_category: [] };
+    const topCats = [...exp.by_category].sort((a, b) => b.total - a.total).slice(0, 8);
+    if (categoriesChart) categoriesChart.destroy();
+    categoriesChart = new Chart(document.getElementById("categories-chart"), {
       type: "doughnut",
       data: {
         labels: topCats.map(c => c.category),
@@ -155,35 +204,13 @@
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } }, cutout: "62%" },
     });
 
-    const txnsResp = await d.fetchJson("/api/transactions/?page_size=8");
-    const recentBody = document.querySelector("#recent-table tbody");
-    if (!txnsResp.results.length) {
-      recentBody.innerHTML = '<tr><td colspan="3" class="empty">No transactions yet.</td></tr>';
-    } else {
-      recentBody.innerHTML = txnsResp.results.map(t => {
-        const amt = parseFloat(t.amount);
-        const catTag = t.category
-          ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
-          : '<span class="tag transfer">uncategorised</span>';
-        const desc = t.description.length > 42 ? t.description.slice(0, 42) + "…" : t.description;
-        return `
-          <tr>
-            <td class="whitespace-nowrap text-zinc-500 text-xs">${t.date}</td>
-            <td>
-              <div class="font-medium">${desc}</div>
-              <div class="text-xs text-zinc-500 mt-0.5">${catTag}</div>
-            </td>
-            <td class="num font-medium ${amt >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(amt, true)}</td>
-          </tr>`;
-      }).join("");
-    }
-
-    const accounts = await d.fetchJson("/api/dashboard/accounts/");
+    // Accounts table filtered by view (business/personal scope)
+    const visible = currentView === "all" ? allAccounts : allAccounts.filter(a => a.scope === currentView);
     const accountsBody = document.getElementById("accounts-tbody");
-    if (!accounts.length) {
-      accountsBody.innerHTML = '<tr><td colspan="5" class="empty">No accounts yet.</td></tr>';
+    if (!visible.length) {
+      accountsBody.innerHTML = '<tr><td colspan="5" class="empty">No accounts in this view.</td></tr>';
     } else {
-      accountsBody.innerHTML = accounts.map(a => `
+      accountsBody.innerHTML = visible.map(a => `
         <tr>
           <td class="font-medium">${a.name}</td>
           <td class="text-zinc-500">${a.bank}</td>
@@ -192,6 +219,33 @@
           <td class="text-zinc-500">${a.last_movement || "—"}</td>
         </tr>`).join("");
     }
+  }
+
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+
+    overviewData = await d.fetchJson("/api/dashboard/overview/");
+    if (overviewData.net_worth) {
+      const nw = overviewData.net_worth;
+      document.querySelector('[data-kpi="business"]').textContent = d.formatCurrency(nw.business);
+      document.querySelector('[data-kpi="house"]').textContent    = d.formatCurrency(nw.house);
+      document.querySelector('[data-kpi="personal"]').textContent = d.formatCurrency(nw.personal);
+      document.querySelector('[data-kpi="savings"]').textContent  = d.formatCurrency(nw.savings);
+      document.getElementById("period-label").textContent         = `Snapshot ${nw.as_of}`;
+    }
+    document.getElementById("count-accounts").textContent      = d.formatInt(overviewData.counts.accounts);
+    document.getElementById("count-statements").textContent    = d.formatInt(overviewData.counts.statements);
+    document.getElementById("count-transactions").textContent  = d.formatInt(overviewData.counts.transactions);
+    document.getElementById("count-uncategorised").textContent = d.formatInt(overviewData.counts.uncategorised);
+
+    cashflowScopes = await d.fetchJson("/api/dashboard/cashflow/");
+    expensesScopes = await d.fetchJson("/api/dashboard/expenses/");
+    allAccounts    = await d.fetchJson("/api/dashboard/accounts/");
+
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => applyView(b.dataset.view));
+    });
+    applyView("all");
   });
 </script>
 {% endblock %}

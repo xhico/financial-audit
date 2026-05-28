@@ -3,14 +3,21 @@
 {% block title %}Expenses{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Expenses</h1>
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Expenses</h1>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="personal">Personal</button>
+  </div>
+</div>
 
 <div class="grid grid-cols-12 gap-3">
 
   <div class="tile expenses col-span-12 md:col-span-4">
     <div class="tile-label">Total spent</div>
     <div class="stat-num hero" id="kpi-total">—</div>
-    <div class="text-sm text-rose-700 mt-2" id="kpi-categories">—</div>
+    <div class="text-sm text-rose-700 dark:text-rose-300 mt-2" id="kpi-categories">—</div>
   </div>
 
   <div class="tile col-span-12 md:col-span-8">
@@ -34,15 +41,30 @@
 </div>
 
 <script>
-  window.addEventListener("load", async () => {
+  let pieChart = null;
+  let stackChart = null;
+  let scopes = {};
+  let currentView = "all";
+
+  function applyView(view) {
+    currentView = view;
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.view === view);
+    });
+    render();
+  }
+
+  function render() {
     const d = window.dashboard;
-    const data = await d.fetchJson("/api/dashboard/expenses/");
+    const data = scopes[currentView] || { monthly: [], by_category: [], monthly_by_category: [] };
+
     const sortedCats = [...data.by_category].sort((a, b) => b.total - a.total);
     const total = sortedCats.reduce((s, c) => s + c.total, 0);
     document.getElementById("kpi-total").textContent = d.formatCurrency(total);
     document.getElementById("kpi-categories").textContent = `Across ${sortedCats.length} categories`;
 
-    new Chart(document.getElementById("pie-chart"), {
+    if (pieChart) pieChart.destroy();
+    pieChart = new Chart(document.getElementById("pie-chart"), {
       type: "doughnut",
       data: {
         labels: sortedCats.map(c => c.category),
@@ -68,7 +90,8 @@
         backgroundColor: d.colourFor(cat),
       }));
 
-    new Chart(document.getElementById("stack-chart"), {
+    if (stackChart) stackChart.destroy();
+    stackChart = new Chart(document.getElementById("stack-chart"), {
       type: "bar",
       data: { labels: months, datasets },
       options: {
@@ -80,15 +103,24 @@
 
     const tbody = document.getElementById("cat-tbody");
     if (!sortedCats.length) {
-      tbody.innerHTML = '<tr><td colspan="3" class="empty">No expenses recorded yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No expenses in this view.</td></tr>';
     } else {
       tbody.innerHTML = sortedCats.map(c => `
         <tr>
           <td class="font-medium">${c.category}</td>
           <td><span class="tag ${c.kind}">${c.kind}</span></td>
-          <td class="num text-rose-600 font-medium">${d.formatCurrency(c.total, true)}</td>
+          <td class="num text-rose-600 dark:text-rose-400 font-medium">${d.formatCurrency(c.total, true)}</td>
         </tr>`).join("");
     }
+  }
+
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    scopes = await d.fetchJson("/api/dashboard/expenses/");
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => applyView(b.dataset.view));
+    });
+    applyView("all");
   });
 </script>
 {% endblock %}

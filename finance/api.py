@@ -52,96 +52,126 @@ def _month_key(d):
 EXPENSE_KINDS = (Category.Kind.EXPENSE, Category.Kind.TAX)
 
 
+def _income_series(scope=None):
+    """
+    Compute monthly + quarterly income totals for one scope.
+
+    Args:
+        scope (str | None): "personal", "business", or None for everything
+
+    Returns:
+        dict: {"monthly": [...], "quarterly": [...]}
+    """
+
+    base = Transaction.objects.filter(category__kind=Category.Kind.INCOME)
+    if scope:
+        base = base.filter(account__scope=scope)
+    rows = base.annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount")).order_by("month")
+    monthly = [{"period": _month_key(r["month"]), "income": float(r["total"])} for r in rows]
+    quarters = {}
+    for r in rows:
+        q = _quarter(r["month"])
+        quarters[q] = quarters.get(q, 0.0) + float(r["total"])
+    quarterly = [{"period": q, "income": total} for q, total in sorted(quarters.items())]
+    return {"monthly": monthly, "quarterly": quarterly}
+
+
 class IncomeView(APIView):
     """
-    Monthly and quarterly income over time.
+    Monthly and quarterly income broken down by scope.
 
-    - Sums transactions in income-kind categories by month
-    - Rolls the months up into calendar quarters
+    - Three series in one response: all, business, personal
     """
 
     def get(self, request):
         """
-        Return the income series.
+        Return the income series for each scope.
 
         Args:
             request (Request): The incoming request
 
         Returns:
-            Response: Monthly and quarterly income totals
+            Response: A dict with keys "all", "business" and "personal"
         """
 
-        rows = (
-            Transaction.objects.filter(category__kind=Category.Kind.INCOME)
-            .annotate(month=TruncMonth("date"))
-            .values("month")
-            .annotate(total=Sum("amount"))
-            .order_by("month")
+        return Response(
+            {
+                "all": _income_series(),
+                "business": _income_series(scope="business"),
+                "personal": _income_series(scope="personal"),
+            }
         )
 
-        monthly = [{"period": _month_key(r["month"]), "income": float(r["total"])} for r in rows]
 
-        # Roll the monthly totals up into calendar quarters
-        quarters = {}
-        for r in rows:
-            q = _quarter(r["month"])
-            quarters[q] = quarters.get(q, 0.0) + float(r["total"])
-        quarterly = [{"period": q, "income": total} for q, total in sorted(quarters.items())]
+def _expenses_series(scope=None):
+    """
+    Compute expense aggregates for one scope.
 
-        return Response({"monthly": monthly, "quarterly": quarterly})
+    Args:
+        scope (str | None): "personal", "business", or None for everything
+
+    Returns:
+        dict: {"monthly": [...], "by_category": [...], "monthly_by_category": [...]}
+    """
+
+    base = Transaction.objects.filter(category__kind__in=EXPENSE_KINDS)
+    if scope:
+        base = base.filter(account__scope=scope)
+
+    monthly_rows = (
+        base.annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount")).order_by("month")
+    )
+    monthly = [{"period": _month_key(r["month"]), "total": -float(r["total"])} for r in monthly_rows]
+
+    by_cat_rows = base.values("category__name", "category__kind").annotate(total=Sum("amount")).order_by("total")
+    by_category = [
+        {"category": r["category__name"], "kind": r["category__kind"], "total": -float(r["total"])} for r in by_cat_rows
+    ]
+
+    mc_rows = (
+        base.annotate(month=TruncMonth("date"))
+        .values("month", "category__name")
+        .annotate(total=Sum("amount"))
+        .order_by("month", "category__name")
+    )
+    monthly_by_category = [
+        {
+            "period": _month_key(r["month"]),
+            "category": r["category__name"],
+            "total": -float(r["total"]),
+        }
+        for r in mc_rows
+    ]
+
+    return {"monthly": monthly, "by_category": by_category, "monthly_by_category": monthly_by_category}
 
 
 class ExpensesView(APIView):
     """
-    Expense aggregates: monthly totals, per-category totals and per-month-per-category.
+    Expense aggregates broken down by scope.
 
-    - "Expense" here means any expense or tax category, by sign-agnostic sum
+    - Three series in one response: all, business, personal
     - Amounts are returned as positive numbers so charts plot upwards
     """
 
     def get(self, request):
         """
-        Return the expense aggregates.
+        Return the expense aggregates for each scope.
 
         Args:
             request (Request): The incoming request
 
         Returns:
-            Response: Three series: monthly totals, by_category, monthly_by_category
+            Response: A dict with keys "all", "business" and "personal"
         """
 
-        base = Transaction.objects.filter(category__kind__in=EXPENSE_KINDS)
-
-        # Monthly totals (positive numbers, even though amounts are stored negative)
-        monthly_rows = (
-            base.annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount")).order_by("month")
-        )
-        monthly = [{"period": _month_key(r["month"]), "total": -float(r["total"])} for r in monthly_rows]
-
-        # Per-category totals across the whole period
-        by_cat_rows = base.values("category__name", "category__kind").annotate(total=Sum("amount")).order_by("total")
-        by_category = [
-            {"category": r["category__name"], "kind": r["category__kind"], "total": -float(r["total"])}
-            for r in by_cat_rows
-        ]
-
-        # Per-month-per-category (for stacked charts)
-        mc_rows = (
-            base.annotate(month=TruncMonth("date"))
-            .values("month", "category__name")
-            .annotate(total=Sum("amount"))
-            .order_by("month", "category__name")
-        )
-        monthly_by_category = [
+        return Response(
             {
-                "period": _month_key(r["month"]),
-                "category": r["category__name"],
-                "total": -float(r["total"]),
+                "all": _expenses_series(),
+                "business": _expenses_series("business"),
+                "personal": _expenses_series("personal"),
             }
-            for r in mc_rows
-        ]
-
-        return Response({"monthly": monthly, "by_category": by_category, "monthly_by_category": monthly_by_category})
+        )
 
 
 def _cashflow_series(scope=None):
@@ -379,35 +409,32 @@ class OverviewView(APIView):
         month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
-        def _sum(qs, since):
-            """Return the sum of amounts in a queryset from a start date."""
+        def _totals(scope, since):
+            """Return {"income", "expenses", "net"} for a scope and date range."""
 
-            # An empty result means zero, not None
-            return float(qs.filter(date__gte=since).aggregate(t=Sum("amount"))["t"] or 0)
+            base = Transaction.objects.filter(date__gte=since)
+            if scope:
+                base = base.filter(account__scope=scope)
+            income = float(base.filter(category__kind=Category.Kind.INCOME).aggregate(t=Sum("amount"))["t"] or 0)
+            # Convert the stored negative amounts into a positive magnitude
+            expenses = -float(base.filter(category__kind__in=EXPENSE_KINDS).aggregate(t=Sum("amount"))["t"] or 0)
+            return {"income": income, "expenses": expenses, "net": income - expenses}
 
-        income_qs = Transaction.objects.filter(category__kind=Category.Kind.INCOME)
-        expense_qs = Transaction.objects.filter(category__kind__in=EXPENSE_KINDS)
+        def _periods(since):
+            """Build the three-scope dictionary for a period start date."""
 
-        mtd_income = _sum(income_qs, month_start)
-        mtd_expenses = -_sum(expense_qs, month_start)
-        ytd_income = _sum(income_qs, year_start)
-        ytd_expenses = -_sum(expense_qs, year_start)
+            return {
+                "since": since.isoformat(),
+                "all": _totals(None, since),
+                "business": _totals("business", since),
+                "personal": _totals("personal", since),
+            }
 
         return Response(
             {
                 "net_worth": net_worth_block,
-                "month_to_date": {
-                    "since": month_start.isoformat(),
-                    "income": mtd_income,
-                    "expenses": mtd_expenses,
-                    "net": mtd_income - mtd_expenses,
-                },
-                "year_to_date": {
-                    "since": year_start.isoformat(),
-                    "income": ytd_income,
-                    "expenses": ytd_expenses,
-                    "net": ytd_income - ytd_expenses,
-                },
+                "month_to_date": _periods(month_start),
+                "year_to_date": _periods(year_start),
                 "counts": {
                     "accounts": Account.objects.count(),
                     "statements": StatementImport.objects.count(),
