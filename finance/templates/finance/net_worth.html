@@ -3,81 +3,177 @@
 {% block title %}Net worth{% endblock %}
 
 {% block content %}
-<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Net worth</h1>
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Net worth</h1>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="house">House</button>
+    <button type="button" data-view="personal">Personal</button>
+    <button type="button" data-view="savings">Savings</button>
+  </div>
+</div>
 
 <div class="grid grid-cols-12 gap-3">
 
   <div class="tile accent col-span-12 md:col-span-6">
-    <div class="tile-label">Latest net worth</div>
-    <div class="stat-num hero" id="kpi-net">—</div>
-    <div class="text-sm text-indigo-700 mt-2" id="kpi-as-of">—</div>
+    <div class="tile-label" id="hero-label">Net worth</div>
+    <div class="stat-num hero" id="hero-value">—</div>
+    <div class="text-sm text-indigo-700 dark:text-indigo-300 mt-2" id="hero-sub">—</div>
   </div>
-  <div class="tile savings col-span-6 md:col-span-3">
-    <div class="tile-label">Savings</div>
-    <div class="stat-num" id="kpi-savings">—</div>
+  <div class="tile business col-span-6 md:col-span-3 hidden md:block" data-only="all business">
+    <div class="tile-label">Business</div>
+    <div class="stat-num" id="kpi-business">—</div>
   </div>
-  <div class="tile mortgage col-span-6 md:col-span-3">
+  <div class="tile mortgage col-span-6 md:col-span-3 hidden md:block" data-only="all house">
     <div class="tile-label">Mortgage</div>
     <div class="stat-num" id="kpi-mortgage">—</div>
   </div>
+  <div class="tile personal col-span-6 md:col-span-3 hidden md:block" data-only="all personal">
+    <div class="tile-label">Personal</div>
+    <div class="stat-num" id="kpi-personal">—</div>
+  </div>
+  <div class="tile savings col-span-6 md:col-span-3 hidden md:block" data-only="all savings">
+    <div class="tile-label">Savings</div>
+    <div class="stat-num" id="kpi-savings">—</div>
+  </div>
 
   <div class="tile col-span-12">
-    <div class="tile-label mb-3">Components over time</div>
+    <div class="tile-label mb-3" id="chart-label">Net worth over time</div>
     <div class="chart-wrap tall"><canvas id="net-worth-chart"></canvas></div>
   </div>
 
   <div class="tile col-span-12">
     <div class="tile-label mb-3">Snapshots</div>
     <table class="table-data">
-      <thead><tr><th>As of</th><th class="num">Current</th><th class="num">Savings</th><th class="num">Investments</th><th class="num">Mortgage</th><th class="num">Net worth</th></tr></thead>
-      <tbody id="networth-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+      <thead>
+        <tr>
+          <th>As of</th>
+          <th class="num">Business</th>
+          <th class="num">House</th>
+          <th class="num">Personal</th>
+          <th class="num">Savings</th>
+          <th class="num">Mortgage</th>
+          <th class="num">Net worth</th>
+        </tr>
+      </thead>
+      <tbody id="networth-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
 
 </div>
 
 <script>
-  window.addEventListener("load", async () => {
+  let chart = null;
+  let data = [];
+  let currentView = "all";
+
+  function applyView(view) {
+    currentView = view;
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.view === view);
+    });
+    document.querySelectorAll("[data-only]").forEach(el => {
+      const allowed = el.dataset.only.split(/\s+/);
+      el.classList.toggle("hidden", !allowed.includes(view));
+      el.classList.toggle("md:block", allowed.includes(view));
+    });
+    render();
+  }
+
+  function pickValue(row) {
+    if (currentView === "business") return row.business;
+    if (currentView === "house")    return row.house;
+    if (currentView === "personal") return row.personal;
+    if (currentView === "savings")  return row.savings;
+    return row.net_worth;
+  }
+
+  function viewTitle() {
+    return ({
+      all:      "Net worth",
+      business: "Business net worth",
+      house:    "Household equity",
+      personal: "Personal liquid",
+      savings:  "Savings",
+    })[currentView];
+  }
+
+  function render() {
     const d = window.dashboard;
-    const data = await d.fetchJson("/api/dashboard/net-worth/");
+    if (!data.length) return;
 
-    if (data.length) {
-      const last = data[data.length - 1];
-      document.getElementById("kpi-net").textContent      = d.formatCurrency(last.net_worth);
-      document.getElementById("kpi-as-of").textContent    = `as of ${last.as_of}`;
-      document.getElementById("kpi-savings").textContent  = d.formatCurrency(last.savings);
-      document.getElementById("kpi-mortgage").textContent = d.formatCurrency(-last.mortgage);
+    const last = data[data.length - 1];
+    document.getElementById("hero-label").textContent = viewTitle();
+    document.getElementById("hero-value").textContent = d.formatCurrency(pickValue(last));
+    document.getElementById("hero-sub").textContent   = `as of ${last.as_of}`;
+    document.getElementById("kpi-business").textContent = d.formatCurrency(last.business);
+    document.getElementById("kpi-personal").textContent = d.formatCurrency(last.personal);
+    document.getElementById("kpi-savings").textContent  = d.formatCurrency(last.savings);
+    document.getElementById("kpi-mortgage").textContent = d.formatCurrency(-last.mortgage);
+
+    const datasets = [];
+    if (currentView === "all") {
+      datasets.push(
+        { label: "Net worth", data: data.map(r => r.net_worth), borderColor: d.accents.accent,   backgroundColor: "rgba(99,102,241,0.10)", fill: true,  tension: 0.25 },
+        { label: "Business",  data: data.map(r => r.business),  borderColor: "#d946ef",          tension: 0.25 },
+        { label: "House",     data: data.map(r => r.house),     borderColor: d.accents.mortgage, tension: 0.25 },
+        { label: "Personal",  data: data.map(r => r.personal),  borderColor: "#0ea5e9",          tension: 0.25 },
+        { label: "Savings",   data: data.map(r => r.savings),   borderColor: d.accents.savings,  tension: 0.25 },
+      );
+    } else if (currentView === "house") {
+      datasets.push(
+        { label: "Household equity", data: data.map(r => r.house),         borderColor: d.accents.mortgage,   backgroundColor: "rgba(245,158,11,0.10)", fill: true, tension: 0.25 },
+        { label: "House account",    data: data.map(r => r.house_current), borderColor: "#0ea5e9", tension: 0.25 },
+        { label: "Mortgage",         data: data.map(r => -r.mortgage),     borderColor: d.accents.expense, tension: 0.25 },
+      );
+    } else if (currentView === "business") {
+      datasets.push(
+        { label: "Business",  data: data.map(r => r.business),  borderColor: "#d946ef",      backgroundColor: "rgba(217,70,239,0.10)", fill: true, tension: 0.25 },
+      );
+    } else if (currentView === "savings") {
+      datasets.push(
+        { label: "Savings",   data: data.map(r => r.savings),   borderColor: d.accents.savings, backgroundColor: "rgba(139,92,246,0.10)", fill: true, tension: 0.25 },
+      );
+    } else {
+      datasets.push(
+        { label: "Personal",  data: data.map(r => r.personal),  borderColor: "#0ea5e9", backgroundColor: "rgba(14,165,233,0.10)", fill: true, tension: 0.25 },
+      );
     }
+    document.getElementById("chart-label").textContent = viewTitle() + " over time";
 
-    new Chart(document.getElementById("net-worth-chart"), {
+    if (chart) chart.destroy();
+    chart = new Chart(document.getElementById("net-worth-chart"), {
       type: "line",
-      data: {
-        labels: data.map(r => r.as_of),
-        datasets: [
-          { label: "Net worth",   data: data.map(r => r.net_worth),   borderColor: d.accents.accent,     backgroundColor: "rgba(99,102,241,0.10)", fill: true, tension: 0.25 },
-          { label: "Current",     data: data.map(r => r.current),     borderColor: "#0ea5e9", tension: 0.25 },
-          { label: "Savings",     data: data.map(r => r.savings),     borderColor: d.accents.savings, tension: 0.25 },
-          { label: "Investments", data: data.map(r => r.investments), borderColor: d.accents.investment, tension: 0.25 },
-          { label: "Mortgage",    data: data.map(r => -r.mortgage),   borderColor: d.accents.expense, tension: 0.25 },
-        ],
-      },
+      data: { labels: data.map(r => r.as_of), datasets },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
     });
 
+    // Snapshots table (same content in every view)
     const tbody = document.getElementById("networth-tbody");
     if (!data.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">No snapshots yet — import a CGD statement.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No snapshots yet — import a CGD statement.</td></tr>';
     } else {
       tbody.innerHTML = data.map(r => `
         <tr>
           <td>${r.as_of}</td>
-          <td class="num">${d.formatCurrency(r.current, true)}</td>
-          <td class="num text-violet-700">${d.formatCurrency(r.savings, true)}</td>
-          <td class="num text-cyan-700">${d.formatCurrency(r.investments, true)}</td>
-          <td class="num text-rose-600">${d.formatCurrency(-r.mortgage, true)}</td>
-          <td class="num font-semibold ${r.net_worth >= 0 ? "text-emerald-700" : "text-rose-700"}">${d.formatCurrency(r.net_worth, true)}</td>
+          <td class="num text-fuchsia-700 dark:text-fuchsia-300">${d.formatCurrency(r.business, true)}</td>
+          <td class="num text-amber-700  dark:text-amber-300">${d.formatCurrency(r.house, true)}</td>
+          <td class="num text-emerald-700 dark:text-emerald-300">${d.formatCurrency(r.personal, true)}</td>
+          <td class="num text-violet-700 dark:text-violet-300">${d.formatCurrency(r.savings, true)}</td>
+          <td class="num text-rose-600 dark:text-rose-400">${d.formatCurrency(-r.mortgage, true)}</td>
+          <td class="num font-semibold ${r.net_worth >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-600 dark:text-rose-400"}">${d.formatCurrency(r.net_worth, true)}</td>
         </tr>`).join("");
     }
+  }
+
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    data = await d.fetchJson("/api/dashboard/net-worth/");
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => applyView(b.dataset.view));
+    });
+    applyView("all");
   });
 </script>
 {% endblock %}

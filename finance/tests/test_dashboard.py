@@ -160,8 +160,12 @@ def test_net_worth_endpoint_from_snapshot(api_client):
     assert len(response.data) == 1
     entry = response.data[0]
     assert entry["savings"] == 5000.0
-    # Net worth is assets minus the mortgage
-    assert entry["net_worth"] == 1000.0 + 5000.0 + 0.0 - 100000.0
+    # No accounts in this fixture, so business/personal/house_current are all
+    # zero. House is just -mortgage, savings stays separate.
+    assert entry["business"] == 0.0
+    assert entry["personal"] == 0.0
+    assert entry["house"] == -100000.0
+    assert entry["net_worth"] == 0.0 + 0.0 + (-100000.0) + 5000.0 + 0.0
 
 
 @pytest.mark.django_db

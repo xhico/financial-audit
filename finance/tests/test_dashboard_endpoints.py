@@ -43,10 +43,15 @@ def seeded():
         dict: References to the created records by short name
     """
 
-    # Personal current account with an income credit and an expense debit
-    house = Account.objects.create(name="House", bank="Bank", iban="PT50000000000000000000010", scope="personal")
+    # Personal current account with an income credit and an expense debit; this
+    # one acts as the household account that holds the mortgage in the snapshot
+    house = Account.objects.create(
+        name="House", bank="Bank", iban="PT50000000000000000000010", scope="personal", role=Account.Role.HOUSE
+    )
     # Business current account with a tax payment
-    biz = Account.objects.create(name="Business", bank="Bank", iban="PT50000000000000000000011", scope="business")
+    biz = Account.objects.create(
+        name="Business", bank="Bank", iban="PT50000000000000000000011", scope="business", role=Account.Role.BUSINESS
+    )
 
     salary = Category.objects.create(name="Salary", kind=Category.Kind.INCOME)
     groceries = Category.objects.create(name="Groceries", kind=Category.Kind.EXPENSE)
@@ -191,8 +196,14 @@ def test_overview_endpoint_summary_numbers(api_client, seeded):
     body = response.data
     assert body["counts"]["accounts"] == 2
     assert body["counts"]["transactions"] == 4
-    assert body["net_worth"]["savings"] == 5000.0
-    assert body["net_worth"]["net_worth"] == 1000.0 + 5000.0 + 0.0 - 100000.0
+    nw = body["net_worth"]
+    assert nw["savings"] == 5000.0
+    # House is now just (house account balance - mortgage); savings tracks
+    # separately. Total = business + house + personal + savings.
+    assert nw["business"] == 800.0
+    assert nw["house"] == 1400.0 - 100000.0
+    assert nw["personal"] == 0.0
+    assert nw["net_worth"] == 800.0 + (1400.0 - 100000.0) + 0.0 + 5000.0
 
 
 @pytest.mark.django_db

@@ -200,17 +200,82 @@ class CashflowView(APIView):
         return Response(series)
 
 
+def _account_balance_at(account, on_date):
+    """
+    Return the running balance of an account on or before a given date.
+
+    Args:
+        account (Account): The account to inspect
+        on_date (datetime.date): The cut-off date
+
+    Returns:
+        float: The latest known balance, or 0 when the account has no movements
+    """
+
+    last = account.transactions.filter(date__lte=on_date).order_by("-date", "-id").first()
+    if last and last.balance is not None:
+        return float(last.balance)
+    return 0.0
+
+
+def _compute_net_worth_series():
+    """
+    Build the net-worth time series broken down by account role.
+
+    Returns:
+        list[dict]: One entry per balance snapshot, oldest first, with the
+        business / personal / house components and the all-up net worth.
+    """
+
+    # Cache the accounts per role so we don't re-query inside the loop
+    house_accounts = list(Account.objects.filter(role=Account.Role.HOUSE))
+    personal_accounts = list(Account.objects.filter(role=Account.Role.PERSONAL))
+    business_accounts = list(Account.objects.filter(role=Account.Role.BUSINESS))
+
+    series = []
+    for snap in BalanceSnapshot.objects.order_by("as_of"):
+        as_of = snap.as_of
+        savings = float(snap.savings_total or 0)
+        investments = float(snap.investments_total or 0)
+        mortgage = float(snap.mortgage_balance or 0)
+
+        house_current = sum(_account_balance_at(a, as_of) for a in house_accounts)
+        personal_current = sum(_account_balance_at(a, as_of) for a in personal_accounts)
+        business_current = sum(_account_balance_at(a, as_of) for a in business_accounts)
+
+        # House equity is the household current account net of the mortgage;
+        # savings and investments are tracked as their own components below
+        house_total = house_current - mortgage
+        net_worth = business_current + personal_current + house_total + savings + investments
+
+        series.append(
+            {
+                "as_of": as_of.isoformat(),
+                "business": business_current,
+                "personal": personal_current,
+                "house": house_total,
+                "house_current": house_current,
+                "savings": savings,
+                "investments": investments,
+                "mortgage": mortgage,
+                "net_worth": net_worth,
+            }
+        )
+
+    return series
+
+
 class NetWorthView(APIView):
     """
-    Savings and net worth over time from the balance snapshots.
+    Net worth over time, broken down by account role.
 
-    - Reports the headline balances captured each month
-    - Computes net worth as assets minus the mortgage balance
+    - Combines the BalanceSnapshot figures with the per-account running balances
+    - Returns the business / personal / household components plus the all-up total
     """
 
     def get(self, request):
         """
-        Return the net-worth series.
+        Return the scoped net-worth series.
 
         Args:
             request (Request): The incoming request
@@ -219,24 +284,7 @@ class NetWorthView(APIView):
             Response: One entry per snapshot, oldest first
         """
 
-        series = []
-        for snap in BalanceSnapshot.objects.order_by("as_of"):
-            current = float(snap.current_total or 0)
-            savings = float(snap.savings_total or 0)
-            investments = float(snap.investments_total or 0)
-            mortgage = float(snap.mortgage_balance or 0)
-            series.append(
-                {
-                    "as_of": snap.as_of.isoformat(),
-                    "current": current,
-                    "savings": savings,
-                    "investments": investments,
-                    "mortgage": mortgage,
-                    "net_worth": current + savings + investments - mortgage,
-                }
-            )
-
-        return Response(series)
+        return Response(_compute_net_worth_series())
 
 
 class AccountsView(APIView):
@@ -298,22 +346,9 @@ class OverviewView(APIView):
             Response: Headline figures for the homepage
         """
 
-        # Latest balance snapshot, if any imports have produced one
-        snap = BalanceSnapshot.objects.order_by("-as_of").first()
-        net_worth_block = None
-        if snap:
-            current = float(snap.current_total or 0)
-            savings = float(snap.savings_total or 0)
-            investments = float(snap.investments_total or 0)
-            mortgage = float(snap.mortgage_balance or 0)
-            net_worth_block = {
-                "as_of": snap.as_of.isoformat(),
-                "current": current,
-                "savings": savings,
-                "investments": investments,
-                "mortgage": mortgage,
-                "net_worth": current + savings + investments - mortgage,
-            }
+        # Latest snapshot, blended with business and personal account balances
+        series = _compute_net_worth_series()
+        net_worth_block = series[-1] if series else None
 
         # Date range we report on: current month and current calendar year
         today = date.today()

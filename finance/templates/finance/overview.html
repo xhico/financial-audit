@@ -18,39 +18,41 @@
     <div class="mt-4 flex-1 min-h-[140px]"><canvas id="hero-chart"></canvas></div>
   </div>
 
-  <!-- Section-coloured KPIs -->
+  <!-- Section-coloured KPIs by role -->
+  <div class="tile business col-span-6 md:col-span-3">
+    <div class="tile-label">Business</div>
+    <div class="stat-num" data-kpi="business">—</div>
+  </div>
+  <div class="tile mortgage col-span-6 md:col-span-3">
+    <div class="tile-label">House</div>
+    <div class="stat-num" data-kpi="house">—</div>
+  </div>
+  <div class="tile personal col-span-6 md:col-span-3">
+    <div class="tile-label">Personal</div>
+    <div class="stat-num" data-kpi="personal">—</div>
+  </div>
   <div class="tile savings col-span-6 md:col-span-3">
     <div class="tile-label">Savings</div>
     <div class="stat-num" data-kpi="savings">—</div>
-  </div>
-  <div class="tile mortgage col-span-6 md:col-span-3">
-    <div class="tile-label">Mortgage</div>
-    <div class="stat-num" data-kpi="mortgage">—</div>
-  </div>
-  <div class="tile investment col-span-6 md:col-span-3">
-    <div class="tile-label">Investments</div>
-    <div class="stat-num" data-kpi="investments">—</div>
-  </div>
-  <div class="tile income col-span-6 md:col-span-3">
-    <div class="tile-label">YTD income</div>
-    <div class="stat-num" data-kpi="ytd_income">—</div>
   </div>
 
   <!-- Month-to-date row -->
   <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD income</div>
-    <div class="stat-num text-emerald-600" data-kpi="mtd_income">—</div>
+    <div class="stat-num text-emerald-600 dark:text-emerald-400" data-kpi="mtd_income">—</div>
   </div>
   <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD expenses</div>
-    <div class="stat-num text-rose-600" data-kpi="mtd_expenses">—</div>
+    <div class="stat-num text-rose-600 dark:text-rose-400" data-kpi="mtd_expenses">—</div>
   </div>
-  <div class="tile col-span-12 md:col-span-6 flex flex-col">
+  <div class="tile col-span-6 md:col-span-3 flex flex-col">
     <div class="tile-label">MTD net</div>
-    <div class="flex items-baseline gap-3 mt-1.5">
-      <div class="stat-num" data-kpi="mtd_net">—</div>
-      <span class="text-xs text-zinc-500" data-kpi="mtd_period">—</span>
-    </div>
+    <div class="stat-num" data-kpi="mtd_net">—</div>
+    <div class="text-xs text-zinc-500 mt-1" data-kpi="mtd_period">—</div>
+  </div>
+  <div class="tile income col-span-6 md:col-span-3 flex flex-col">
+    <div class="tile-label">YTD income</div>
+    <div class="stat-num" data-kpi="ytd_income">—</div>
   </div>
 
   <!-- Cashflow strip -->
@@ -118,11 +120,13 @@
 
     const overview = await d.fetchJson("/api/dashboard/overview/");
     if (overview.net_worth) {
-      setKpi("net_worth", d.formatCurrency(overview.net_worth.net_worth));
-      setKpi("net_worth_as_of", `As of ${overview.net_worth.as_of}`);
-      setKpi("savings", d.formatCurrency(overview.net_worth.savings));
-      setKpi("mortgage", d.formatCurrency(-overview.net_worth.mortgage));
-      setKpi("investments", d.formatCurrency(overview.net_worth.investments));
+      const nw = overview.net_worth;
+      setKpi("net_worth", d.formatCurrency(nw.net_worth));
+      setKpi("net_worth_as_of", `As of ${nw.as_of}`);
+      setKpi("business", d.formatCurrency(nw.business));
+      setKpi("house", d.formatCurrency(nw.house));
+      setKpi("personal", d.formatCurrency(nw.personal));
+      setKpi("savings", d.formatCurrency(nw.savings));
     }
     setKpi("mtd_income", d.formatCurrency(overview.month_to_date.income));
     setKpi("mtd_expenses", d.formatCurrency(-overview.month_to_date.expenses));

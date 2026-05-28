@@ -16,8 +16,8 @@ class AccountAdmin(admin.ModelAdmin):
     - Allows filtering by scope and kind
     """
 
-    list_display = ("name", "bank", "scope", "kind", "iban", "currency")
-    list_filter = ("scope", "kind", "bank")
+    list_display = ("name", "bank", "scope", "role", "kind", "iban", "currency")
+    list_filter = ("scope", "role", "kind", "bank")
     search_fields = ("name", "iban", "bank")
 
 

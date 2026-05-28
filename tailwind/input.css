@@ -63,6 +63,8 @@
   .tile.income     { @apply bg-emerald-50/80 ring-emerald-200/60 dark:bg-emerald-950/40  dark:ring-emerald-900/50; }
   .tile.expenses   { @apply bg-rose-50/70    ring-rose-200/60    dark:bg-rose-950/40     dark:ring-rose-900/50; }
   .tile.accent     { @apply bg-indigo-50/80  ring-indigo-200/60  dark:bg-indigo-950/40   dark:ring-indigo-900/50; }
+  .tile.business   { @apply bg-fuchsia-50/70 ring-fuchsia-200/60 dark:bg-fuchsia-950/40  dark:ring-fuchsia-900/50; }
+  .tile.personal   { @apply bg-sky-50/70     ring-sky-200/60     dark:bg-sky-950/40      dark:ring-sky-900/50; }
   .tile.neutral    { @apply bg-zinc-50       ring-zinc-200/70    dark:bg-zinc-900/50     dark:ring-zinc-800/70; }
 
   /* Tile typography */
@@ -75,6 +77,8 @@
   .tile.income     .tile-label { @apply text-emerald-700 dark:text-emerald-300; }
   .tile.expenses   .tile-label { @apply text-rose-700    dark:text-rose-300; }
   .tile.accent     .tile-label { @apply text-indigo-700  dark:text-indigo-300; }
+  .tile.business   .tile-label { @apply text-fuchsia-700 dark:text-fuchsia-300; }
+  .tile.personal   .tile-label { @apply text-sky-700     dark:text-sky-300; }
 
   .stat-num         { @apply text-3xl font-semibold tracking-tight tabular-nums mt-1.5 text-zinc-900 dark:text-zinc-100; }
   .stat-num.hero    { @apply text-4xl md:text-5xl tracking-tighter mt-2; }
@@ -131,6 +135,22 @@
   }
 
   .empty { @apply text-center py-10 text-sm text-zinc-400 dark:text-zinc-600; }
+
+  /* Segmented tab pill control */
+  .tab-group {
+    @apply inline-flex rounded-full p-1 text-sm
+           bg-zinc-100 ring-1 ring-zinc-200
+           dark:bg-zinc-900 dark:ring-zinc-800;
+  }
+  .tab-group button {
+    @apply px-3 py-1 rounded-full font-medium transition
+           text-zinc-600 hover:text-zinc-900
+           dark:text-zinc-400 dark:hover:text-zinc-100;
+  }
+  .tab-group button.is-active {
+    @apply bg-zinc-900 text-white shadow-sm
+           dark:bg-zinc-100 dark:text-zinc-900;
+  }
 
   /* Chart canvases occupy the remaining tile height */
   .chart-wrap      { @apply relative; height: 280px; }

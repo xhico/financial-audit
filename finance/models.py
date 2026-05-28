@@ -32,11 +32,18 @@ class Account(models.Model):
         TERM = "term", "Term deposit"
         CREDIT = "credit", "Credit"
 
+    class Role(models.TextChoices):
+        HOUSE = "house", "Household (holds the mortgage)"
+        PERSONAL = "personal", "Personal"
+        BUSINESS = "business", "Business"
+
     name = models.CharField(max_length=120)
     bank = models.CharField(max_length=120)
     # Normalised IBAN (no spaces) used to match transactions to this account
     iban = models.CharField(max_length=34, unique=True)
     scope = models.CharField(max_length=10, choices=Scope.choices)
+    # Finer breakdown for net-worth views; the migration seeds this from scope
+    role = models.CharField(max_length=10, choices=Role.choices, default=Role.PERSONAL)
     kind = models.CharField(max_length=10, choices=Kind.choices, default=Kind.CURRENT)
     currency = models.CharField(max_length=3, default="EUR")
     created_at = models.DateTimeField(auto_now_add=True)
