@@ -3,36 +3,62 @@
 {% block title %}Net worth{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Net worth</h1>
+<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Net worth</h1>
 
-<section class="panel">
-  <h2>Components over time</h2>
-  <div class="chart-wrap tall"><canvas id="net-worth-chart"></canvas></div>
-</section>
+<div class="grid grid-cols-12 gap-3">
 
-<section class="panel">
-  <h2>Snapshots</h2>
-  <table class="table-data">
-    <thead><tr><th>As of</th><th class="num">Current</th><th class="num">Savings</th><th class="num">Investments</th><th class="num">Mortgage</th><th class="num">Net worth</th></tr></thead>
-    <tbody id="networth-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
-  </table>
-</section>
+  <div class="tile accent col-span-12 md:col-span-6">
+    <div class="tile-label">Latest net worth</div>
+    <div class="stat-num hero" id="kpi-net">—</div>
+    <div class="text-sm text-indigo-700 mt-2" id="kpi-as-of">—</div>
+  </div>
+  <div class="tile savings col-span-6 md:col-span-3">
+    <div class="tile-label">Savings</div>
+    <div class="stat-num" id="kpi-savings">—</div>
+  </div>
+  <div class="tile mortgage col-span-6 md:col-span-3">
+    <div class="tile-label">Mortgage</div>
+    <div class="stat-num" id="kpi-mortgage">—</div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Components over time</div>
+    <div class="chart-wrap tall"><canvas id="net-worth-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Snapshots</div>
+    <table class="table-data">
+      <thead><tr><th>As of</th><th class="num">Current</th><th class="num">Savings</th><th class="num">Investments</th><th class="num">Mortgage</th><th class="num">Net worth</th></tr></thead>
+      <tbody id="networth-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/net-worth/");
 
+    if (data.length) {
+      const last = data[data.length - 1];
+      document.getElementById("kpi-net").textContent      = d.formatCurrency(last.net_worth);
+      document.getElementById("kpi-as-of").textContent    = `as of ${last.as_of}`;
+      document.getElementById("kpi-savings").textContent  = d.formatCurrency(last.savings);
+      document.getElementById("kpi-mortgage").textContent = d.formatCurrency(-last.mortgage);
+    }
+
     new Chart(document.getElementById("net-worth-chart"), {
       type: "line",
       data: {
         labels: data.map(r => r.as_of),
         datasets: [
-          { label: "Net worth",   data: data.map(r => r.net_worth),   borderColor: "#818cf8", backgroundColor: "rgba(129,140,248,0.12)", fill: true, tension: 0.25 },
-          { label: "Current",     data: data.map(r => r.current),     borderColor: "#38bdf8", tension: 0.25 },
-          { label: "Savings",     data: data.map(r => r.savings),     borderColor: "#34d399", tension: 0.25 },
-          { label: "Investments", data: data.map(r => r.investments), borderColor: "#a78bfa", tension: 0.25 },
-          { label: "Mortgage",    data: data.map(r => -r.mortgage),   borderColor: "#fb7185", tension: 0.25 },
+          { label: "Net worth",   data: data.map(r => r.net_worth),   borderColor: d.accents.accent,     backgroundColor: "rgba(99,102,241,0.10)", fill: true, tension: 0.25 },
+          { label: "Current",     data: data.map(r => r.current),     borderColor: "#0ea5e9", tension: 0.25 },
+          { label: "Savings",     data: data.map(r => r.savings),     borderColor: d.accents.savings, tension: 0.25 },
+          { label: "Investments", data: data.map(r => r.investments), borderColor: d.accents.investment, tension: 0.25 },
+          { label: "Mortgage",    data: data.map(r => -r.mortgage),   borderColor: d.accents.expense, tension: 0.25 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
@@ -46,10 +72,10 @@
         <tr>
           <td>${r.as_of}</td>
           <td class="num">${d.formatCurrency(r.current, true)}</td>
-          <td class="num text-emerald-400">${d.formatCurrency(r.savings, true)}</td>
-          <td class="num text-violet-400">${d.formatCurrency(r.investments, true)}</td>
-          <td class="num text-rose-400">${d.formatCurrency(-r.mortgage, true)}</td>
-          <td class="num font-semibold ${r.net_worth >= 0 ? "text-emerald-400" : "text-rose-400"}">${d.formatCurrency(r.net_worth, true)}</td>
+          <td class="num text-violet-700">${d.formatCurrency(r.savings, true)}</td>
+          <td class="num text-cyan-700">${d.formatCurrency(r.investments, true)}</td>
+          <td class="num text-rose-600">${d.formatCurrency(-r.mortgage, true)}</td>
+          <td class="num font-semibold ${r.net_worth >= 0 ? "text-emerald-700" : "text-rose-700"}">${d.formatCurrency(r.net_worth, true)}</td>
         </tr>`).join("");
     }
   });

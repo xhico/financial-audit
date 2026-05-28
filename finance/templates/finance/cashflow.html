@@ -3,34 +3,59 @@
 {% block title %}Cashflow{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Cashflow</h1>
+<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Cashflow</h1>
 
-<section class="panel">
-  <h2>Monthly income vs expenses</h2>
-  <div class="chart-wrap tall"><canvas id="cashflow-chart"></canvas></div>
-</section>
+<div class="grid grid-cols-12 gap-3">
 
-<section class="panel">
-  <h2>Monthly totals</h2>
-  <table class="table-data">
-    <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th></tr></thead>
-    <tbody id="cashflow-tbody"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
-  </table>
-</section>
+  <div class="tile income col-span-12 md:col-span-4">
+    <div class="tile-label">Total income</div>
+    <div class="stat-num" id="kpi-income">—</div>
+  </div>
+  <div class="tile expenses col-span-12 md:col-span-4">
+    <div class="tile-label">Total expenses</div>
+    <div class="stat-num" id="kpi-expenses">—</div>
+  </div>
+  <div class="tile accent col-span-12 md:col-span-4">
+    <div class="tile-label">Net cashflow</div>
+    <div class="stat-num" id="kpi-net">—</div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Monthly income vs expenses</div>
+    <div class="chart-wrap tall"><canvas id="cashflow-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Monthly totals</div>
+    <table class="table-data">
+      <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th></tr></thead>
+      <tbody id="cashflow-tbody"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/cashflow/");
+    const totalIn  = data.reduce((s, r) => s + r.income, 0);
+    const totalOut = data.reduce((s, r) => s + r.expenses, 0);
+    document.getElementById("kpi-income").textContent   = d.formatCurrency(totalIn);
+    document.getElementById("kpi-expenses").textContent = d.formatCurrency(-totalOut);
+    const net = totalIn - totalOut;
+    const netEl = document.getElementById("kpi-net");
+    netEl.textContent = d.formatCurrency(net);
+    netEl.classList.add(net >= 0 ? "text-emerald-700" : "text-rose-700");
 
     new Chart(document.getElementById("cashflow-chart"), {
       type: "bar",
       data: {
         labels: data.map(r => r.period),
         datasets: [
-          { label: "Income",   data: data.map(r => r.income),    backgroundColor: "#34d399" },
-          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#fb7185" },
-          { label: "Net",      data: data.map(r => r.net), type: "line", borderColor: "#818cf8", backgroundColor: "#818cf8", tension: 0.25 },
+          { label: "Income",   data: data.map(r => r.income),    backgroundColor: d.accents.income },
+          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: d.accents.expense },
+          { label: "Net",      data: data.map(r => r.net), type: "line", borderColor: d.accents.accent, pointRadius: 0, tension: 0.25 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
@@ -43,9 +68,9 @@
       tbody.innerHTML = data.map(r => `
         <tr>
           <td>${r.period}</td>
-          <td class="num text-emerald-400">${d.formatCurrency(r.income, true)}</td>
-          <td class="num text-rose-400">${d.formatCurrency(-r.expenses, true)}</td>
-          <td class="num font-semibold ${r.net >= 0 ? "text-emerald-400" : "text-rose-400"}">${d.formatCurrency(r.net, true)}</td>
+          <td class="num text-emerald-600">${d.formatCurrency(r.income, true)}</td>
+          <td class="num text-rose-600">${d.formatCurrency(-r.expenses, true)}</td>
+          <td class="num font-semibold ${r.net >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(r.net, true)}</td>
         </tr>`).join("");
     }
   });

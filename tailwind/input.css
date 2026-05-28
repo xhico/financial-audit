@@ -1,9 +1,9 @@
 /*
  * Author: xhico
  * Date: May 27, 2026
- * Tailwind source — compiled by the Docker tailwind stage into the static
- * directory as tailwind.css. Dark-first fintech palette: zinc surfaces with
- * an indigo-violet brand and bright emerald / rose / violet accents.
+ * Tailwind source — compiled into static tailwind.css by the Docker stage.
+ * Apple-Health-style bento dashboard: warm light surfaces, varied tile sizes,
+ * section-accent colours, big tabular numbers.
  */
 
 @tailwind base;
@@ -13,69 +13,97 @@
 @layer base {
   html, body { @apply h-full; }
   body {
-    @apply bg-zinc-950 text-zinc-100;
-    background:
-      radial-gradient(1200px 720px at 100% -10%, rgba(99, 102, 241, 0.10), transparent 60%),
-      radial-gradient(900px 540px at -10% 110%, rgba(16, 185, 129, 0.06), transparent 60%),
-      theme(colors.zinc.950);
-    background-attachment: fixed;
+    @apply bg-stone-50 text-zinc-900;
   }
-  ::selection { background-color: theme(colors.indigo.500 / 30%); }
+  ::selection { background-color: theme(colors.zinc.900 / 12%); }
 }
 
 @layer components {
-  .nav-link {
-    @apply px-3 py-2 rounded-lg text-sm font-medium text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-100 whitespace-nowrap transition;
+  /* Top navigation bar */
+  .topbar       { @apply sticky top-0 z-10 bg-stone-50/85 backdrop-blur border-b border-zinc-200/70; }
+  .topbar-inner { @apply max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center gap-6; }
+  .brand        { @apply flex items-center gap-2 font-semibold tracking-tight text-zinc-900 text-base shrink-0; }
+  .brand:hover  { text-decoration: none; }
+  .brand-mark {
+    @apply w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white grid place-items-center font-bold text-sm shadow-md shadow-indigo-500/25;
   }
-  .nav-link.is-active { @apply bg-indigo-500/15 text-indigo-300; }
-
-  .kpi-card {
-    @apply bg-zinc-900/70 border border-zinc-800 rounded-xl px-5 py-4 backdrop-blur transition hover:border-zinc-700 hover:bg-zinc-900;
+  .topnav   { @apply flex items-center gap-1 overflow-x-auto flex-1 min-w-0; }
+  .topnav a {
+    @apply px-3 py-1.5 rounded-full text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 whitespace-nowrap transition;
   }
-  .kpi-label { @apply text-[0.7rem] font-semibold uppercase tracking-[0.08em] text-zinc-500; }
-  .kpi-value { @apply text-3xl font-semibold tracking-tight tabular-nums mt-1.5 text-white; }
-  .kpi-sub   { @apply text-xs text-zinc-500 mt-1; }
+  .topnav a.is-active { @apply bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white; }
 
-  .panel    { @apply bg-zinc-900/70 border border-zinc-800 rounded-xl p-6 backdrop-blur transition hover:border-zinc-700; }
-  .panel h2 { @apply text-sm font-semibold uppercase tracking-wider text-zinc-400 mb-4; }
+  /* Bento tiles */
+  .tile {
+    @apply bg-white rounded-3xl p-5 md:p-6 transition ring-1 ring-zinc-200/70 shadow-[0_1px_2px_rgba(15,23,42,0.04)] hover:ring-zinc-300;
+  }
+  .tile.savings    { @apply bg-violet-50/70  ring-violet-200/60; }
+  .tile.mortgage   { @apply bg-amber-50/80   ring-amber-200/60; }
+  .tile.investment { @apply bg-cyan-50/80    ring-cyan-200/60; }
+  .tile.income     { @apply bg-emerald-50/80 ring-emerald-200/60; }
+  .tile.expenses   { @apply bg-rose-50/70    ring-rose-200/60; }
+  .tile.accent     { @apply bg-indigo-50/80  ring-indigo-200/60; }
+  .tile.neutral    { @apply bg-zinc-50       ring-zinc-200/70; }
 
-  .chart-wrap      { @apply relative; height: 320px; }
-  .chart-wrap.tall { height: 440px; }
+  /* Tile typography */
+  .tile-label {
+    @apply text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-zinc-500;
+  }
+  .tile.savings    .tile-label { @apply text-violet-700; }
+  .tile.mortgage   .tile-label { @apply text-amber-700; }
+  .tile.investment .tile-label { @apply text-cyan-700; }
+  .tile.income     .tile-label { @apply text-emerald-700; }
+  .tile.expenses   .tile-label { @apply text-rose-700; }
+  .tile.accent     .tile-label { @apply text-indigo-700; }
 
+  .stat-num         { @apply text-3xl font-semibold tracking-tight tabular-nums mt-1.5 text-zinc-900; }
+  .stat-num.hero    { @apply text-4xl md:text-5xl tracking-tighter mt-2; }
+  .stat-sub         { @apply text-sm text-zinc-500 mt-1; }
+
+  .delta { @apply inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full; }
+  .delta.up   { @apply text-emerald-700 bg-emerald-50  ring-1 ring-inset ring-emerald-200; }
+  .delta.down { @apply text-rose-700    bg-rose-50     ring-1 ring-inset ring-rose-200; }
+
+  /* Tables */
   .table-data { @apply w-full border-collapse text-sm; }
   .table-data th {
-    @apply text-left py-2.5 px-3 border-b border-zinc-800 text-[0.7rem] font-semibold uppercase tracking-wider text-zinc-500;
+    @apply text-left py-2.5 px-3 border-b border-zinc-200 text-[0.7rem] font-semibold uppercase tracking-wider text-zinc-500;
   }
   .table-data td {
-    @apply py-3 px-3 border-b border-zinc-800/60 align-top text-zinc-200;
+    @apply py-3 px-3 border-b border-zinc-100 align-top text-zinc-900;
   }
   .table-data tbody tr:last-child td { @apply border-b-0; }
-  .table-data tbody tr:hover td      { @apply bg-zinc-800/40; }
+  .table-data tbody tr:hover td      { @apply bg-zinc-50/80; }
   .table-data .num                   { @apply text-right tabular-nums; }
 
-  .tag             { @apply inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold ring-1 ring-inset; }
-  .tag.income      { @apply bg-emerald-500/10  text-emerald-300  ring-emerald-500/20; }
-  .tag.expense     { @apply bg-rose-500/10     text-rose-300     ring-rose-500/20; }
-  .tag.transfer    { @apply bg-zinc-700/40     text-zinc-300     ring-zinc-700/60; }
-  .tag.investment  { @apply bg-violet-500/10   text-violet-300   ring-violet-500/20; }
-  .tag.tax         { @apply bg-amber-500/10    text-amber-300    ring-amber-500/20; }
-  .tag.other       { @apply bg-indigo-500/10   text-indigo-300   ring-indigo-500/20; }
-  .tag.personal    { @apply bg-sky-500/10      text-sky-300      ring-sky-500/20; }
-  .tag.business    { @apply bg-fuchsia-500/10  text-fuchsia-300  ring-fuchsia-500/20; }
+  /* Tags */
+  .tag             { @apply inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ring-1 ring-inset; }
+  .tag.income      { @apply bg-emerald-50  text-emerald-700  ring-emerald-200; }
+  .tag.expense     { @apply bg-rose-50     text-rose-700     ring-rose-200; }
+  .tag.transfer    { @apply bg-zinc-100    text-zinc-700     ring-zinc-200; }
+  .tag.investment  { @apply bg-violet-50   text-violet-700   ring-violet-200; }
+  .tag.tax         { @apply bg-amber-50    text-amber-700    ring-amber-200; }
+  .tag.other       { @apply bg-indigo-50   text-indigo-700   ring-indigo-200; }
+  .tag.personal    { @apply bg-sky-50      text-sky-700      ring-sky-200; }
+  .tag.business    { @apply bg-fuchsia-50  text-fuchsia-700  ring-fuchsia-200; }
 
-  .filter-field { @apply text-xs font-medium text-zinc-400 flex flex-col gap-1; }
-  .filter-input,
+  /* Forms */
+  .filter-field { @apply text-xs font-medium text-zinc-500 flex flex-col gap-1; }
   .filter-field input,
   .filter-field select {
-    @apply px-3 py-1.5 border border-zinc-800 rounded-md bg-zinc-900 text-sm text-zinc-100 transition focus:outline-none focus:ring-2 focus:ring-indigo-500/30 focus:border-indigo-500 placeholder:text-zinc-600;
+    @apply px-3 py-1.5 ring-1 ring-zinc-200 rounded-full bg-white text-sm text-zinc-900 transition focus:outline-none focus:ring-2 focus:ring-zinc-900;
   }
-
   .btn-primary {
-    @apply px-4 py-2 bg-indigo-500 text-white rounded-md text-sm font-semibold transition hover:bg-indigo-400 active:scale-[0.98] shadow-lg shadow-indigo-500/30;
+    @apply px-4 py-2 bg-zinc-900 text-white rounded-full text-sm font-medium transition hover:bg-zinc-800 active:scale-[0.98];
   }
   .btn-ghost {
-    @apply px-3 py-1.5 bg-zinc-900 text-zinc-200 border border-zinc-800 rounded-md text-sm font-medium transition hover:bg-zinc-800 hover:border-zinc-700 disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply px-3 py-1.5 bg-white text-zinc-700 ring-1 ring-zinc-200 rounded-full text-sm font-medium transition hover:bg-zinc-50 disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
-  .empty { @apply text-center text-zinc-600 py-10 text-sm; }
+  .empty { @apply text-center text-zinc-400 py-10 text-sm; }
+
+  /* Chart canvases occupy the remaining tile height */
+  .chart-wrap      { @apply relative; height: 280px; }
+  .chart-wrap.tall { height: 360px; }
+  .chart-wrap.mini { height: 80px; }
 }

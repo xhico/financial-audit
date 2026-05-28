@@ -3,41 +3,52 @@
 {% block title %}Expenses{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Expenses</h1>
+<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Expenses</h1>
 
-<section class="panel">
-  <h2>By category (all time)</h2>
-  <div class="chart-wrap"><canvas id="expenses-pie-chart"></canvas></div>
-</section>
+<div class="grid grid-cols-12 gap-3">
 
-<section class="panel">
-  <h2>Monthly expenses by category</h2>
-  <div class="chart-wrap tall"><canvas id="expenses-stack-chart"></canvas></div>
-</section>
+  <div class="tile expenses col-span-12 md:col-span-4">
+    <div class="tile-label">Total spent</div>
+    <div class="stat-num hero" id="kpi-total">—</div>
+    <div class="text-sm text-rose-700 mt-2" id="kpi-categories">—</div>
+  </div>
 
-<section class="panel">
-  <h2>Category totals</h2>
-  <div class="max-w-2xl">
+  <div class="tile col-span-12 md:col-span-8">
+    <div class="tile-label mb-3">By category</div>
+    <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Monthly expenses by category</div>
+    <div class="chart-wrap tall"><canvas id="stack-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Category totals</div>
     <table class="table-data">
       <thead><tr><th>Category</th><th>Kind</th><th class="num">Total spent</th></tr></thead>
-      <tbody id="expenses-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      <tbody id="cat-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
     </table>
   </div>
-</section>
+
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/expenses/");
-
     const sortedCats = [...data.by_category].sort((a, b) => b.total - a.total);
-    new Chart(document.getElementById("expenses-pie-chart"), {
+    const total = sortedCats.reduce((s, c) => s + c.total, 0);
+    document.getElementById("kpi-total").textContent = d.formatCurrency(total);
+    document.getElementById("kpi-categories").textContent = `Across ${sortedCats.length} categories`;
+
+    new Chart(document.getElementById("pie-chart"), {
       type: "doughnut",
       data: {
         labels: sortedCats.map(c => c.category),
         datasets: [{ data: sortedCats.map(c => c.total), backgroundColor: sortedCats.map(c => d.colourFor(c.category)), borderWidth: 0 }],
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } }, cutout: "55%" },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } }, cutout: "60%" },
     });
 
     const monthsSet = new Set();
@@ -57,7 +68,7 @@
         backgroundColor: d.colourFor(cat),
       }));
 
-    new Chart(document.getElementById("expenses-stack-chart"), {
+    new Chart(document.getElementById("stack-chart"), {
       type: "bar",
       data: { labels: months, datasets },
       options: {
@@ -67,7 +78,7 @@
       },
     });
 
-    const tbody = document.getElementById("expenses-tbody");
+    const tbody = document.getElementById("cat-tbody");
     if (!sortedCats.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="empty">No expenses recorded yet.</td></tr>';
     } else {
@@ -75,7 +86,7 @@
         <tr>
           <td class="font-medium">${c.category}</td>
           <td><span class="tag ${c.kind}">${c.kind}</span></td>
-          <td class="num text-rose-400 font-medium">${d.formatCurrency(c.total, true)}</td>
+          <td class="num text-rose-600 font-medium">${d.formatCurrency(c.total, true)}</td>
         </tr>`).join("");
     }
   });

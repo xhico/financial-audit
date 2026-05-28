@@ -3,99 +3,216 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Overview</h1>
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900">Overview</h1>
+  <p class="text-sm text-zinc-500" id="period-label">—</p>
+</div>
 
-<section class="grid grid-cols-2 md:grid-cols-4 gap-4">
-  <div class="kpi-card md:col-span-2">
-    <div class="kpi-label">Net worth</div>
-    <div class="kpi-value" data-kpi="net_worth">—</div>
-    <div class="kpi-sub" data-kpi="net_worth_as_of"></div>
+<div class="grid grid-cols-12 gap-3">
+
+  <!-- Hero: net worth + sparkline -->
+  <div class="tile col-span-12 md:col-span-6 md:row-span-2 flex flex-col">
+    <div class="tile-label">Net worth</div>
+    <div class="stat-num hero" data-kpi="net_worth">—</div>
+    <div class="stat-sub" data-kpi="net_worth_as_of"></div>
+    <div class="mt-4 flex-1 min-h-[140px]"><canvas id="hero-chart"></canvas></div>
   </div>
-  <div class="kpi-card"><div class="kpi-label">Savings</div><div class="kpi-value text-emerald-400" data-kpi="savings">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">Mortgage</div><div class="kpi-value text-rose-400" data-kpi="mortgage">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">MTD income</div><div class="kpi-value text-emerald-400" data-kpi="mtd_income">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">MTD expenses</div><div class="kpi-value text-rose-400" data-kpi="mtd_expenses">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">MTD net</div><div class="kpi-value" data-kpi="mtd_net">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">YTD income</div><div class="kpi-value text-emerald-400" data-kpi="ytd_income">—</div></div>
-</section>
 
-<section class="panel">
-  <h2>Net worth over time</h2>
-  <div class="chart-wrap"><canvas id="net-worth-chart"></canvas></div>
-</section>
+  <!-- Section-coloured KPIs -->
+  <div class="tile savings col-span-6 md:col-span-3">
+    <div class="tile-label">Savings</div>
+    <div class="stat-num" data-kpi="savings">—</div>
+  </div>
+  <div class="tile mortgage col-span-6 md:col-span-3">
+    <div class="tile-label">Mortgage</div>
+    <div class="stat-num" data-kpi="mortgage">—</div>
+  </div>
+  <div class="tile investment col-span-6 md:col-span-3">
+    <div class="tile-label">Investments</div>
+    <div class="stat-num" data-kpi="investments">—</div>
+  </div>
+  <div class="tile income col-span-6 md:col-span-3">
+    <div class="tile-label">YTD income</div>
+    <div class="stat-num" data-kpi="ytd_income">—</div>
+  </div>
 
-<section class="panel">
-  <h2>Accounts</h2>
-  <table class="table-data">
-    <thead><tr><th>Account</th><th>Bank</th><th>Scope</th><th class="num">Balance</th><th>Last movement</th></tr></thead>
-    <tbody id="accounts-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
-  </table>
-</section>
+  <!-- Month-to-date row -->
+  <div class="tile col-span-6 md:col-span-3 flex flex-col">
+    <div class="tile-label">MTD income</div>
+    <div class="stat-num text-emerald-600" data-kpi="mtd_income">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-3 flex flex-col">
+    <div class="tile-label">MTD expenses</div>
+    <div class="stat-num text-rose-600" data-kpi="mtd_expenses">—</div>
+  </div>
+  <div class="tile col-span-12 md:col-span-6 flex flex-col">
+    <div class="tile-label">MTD net</div>
+    <div class="flex items-baseline gap-3 mt-1.5">
+      <div class="stat-num" data-kpi="mtd_net">—</div>
+      <span class="text-xs text-zinc-500" data-kpi="mtd_period">—</span>
+    </div>
+  </div>
 
-<section class="panel">
-  <h2>Library</h2>
-  <dl class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Accounts</dt>       <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_accounts">—</dd></div>
-    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Statements</dt>     <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_statements">—</dd></div>
-    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Transactions</dt>   <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_transactions">—</dd></div>
-    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Uncategorised</dt>  <dd class="text-xl font-semibold tabular-nums mt-1 text-amber-400" data-kpi="count_uncategorised">—</dd></div>
-  </dl>
-</section>
+  <!-- Cashflow strip -->
+  <div class="tile col-span-12">
+    <div class="flex items-baseline justify-between mb-3">
+      <div class="tile-label">Cashflow — last 12 months</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:cashflow' %}">View →</a>
+    </div>
+    <div class="chart-wrap tall"><canvas id="cashflow-chart"></canvas></div>
+  </div>
+
+  <!-- Spending breakdown -->
+  <div class="tile col-span-12 md:col-span-5 flex flex-col">
+    <div class="flex items-baseline justify-between mb-3">
+      <div class="tile-label">Top spending categories</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:expenses' %}">View →</a>
+    </div>
+    <div class="chart-wrap"><canvas id="categories-chart"></canvas></div>
+  </div>
+
+  <!-- Recent transactions -->
+  <div class="tile col-span-12 md:col-span-7 flex flex-col">
+    <div class="flex items-baseline justify-between mb-3">
+      <div class="tile-label">Recent transactions</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:transactions' %}">View all →</a>
+    </div>
+    <div class="overflow-hidden">
+      <table class="table-data" id="recent-table">
+        <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Accounts -->
+  <div class="tile col-span-12">
+    <div class="flex items-baseline justify-between mb-3">
+      <div class="tile-label">Accounts</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900" href="{% url 'pages:accounts' %}">View →</a>
+    </div>
+    <table class="table-data">
+      <thead><tr><th>Account</th><th>Bank</th><th>Scope</th><th class="num">Balance</th><th>Last movement</th></tr></thead>
+      <tbody id="accounts-tbody"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Library row at the bottom -->
+  <div class="tile neutral col-span-12">
+    <dl class="grid grid-cols-2 md:grid-cols-4 gap-6">
+      <div><dt class="tile-label">Accounts</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_accounts">—</dd></div>
+      <div><dt class="tile-label">Statements imported</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_statements">—</dd></div>
+      <div><dt class="tile-label">Transactions</dt><dd class="text-2xl font-semibold tabular-nums text-zinc-900 mt-1" data-kpi="count_transactions">—</dd></div>
+      <div><dt class="tile-label">Uncategorised</dt><dd class="text-2xl font-semibold tabular-nums text-amber-600 mt-1" data-kpi="count_uncategorised">—</dd></div>
+    </dl>
+  </div>
+
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
-    const overview = await d.fetchJson("/api/dashboard/overview/");
 
-    const setKpi = (key, value, signedValue) => {
-      document.querySelectorAll(`[data-kpi="${key}"]`).forEach(el => {
-        el.textContent = value;
-        if (signedValue !== undefined) {
-          el.classList.remove("text-emerald-400", "text-rose-400");
-          if (signedValue > 0) el.classList.add("text-emerald-400");
-          else if (signedValue < 0) el.classList.add("text-rose-400");
-        }
-      });
+    const setKpi = (key, value) => {
+      document.querySelectorAll(`[data-kpi="${key}"]`).forEach(el => el.textContent = value);
     };
 
+    const overview = await d.fetchJson("/api/dashboard/overview/");
     if (overview.net_worth) {
-      setKpi("net_worth", d.formatCurrency(overview.net_worth.net_worth), overview.net_worth.net_worth);
-      setKpi("net_worth_as_of", `as of ${overview.net_worth.as_of}`);
+      setKpi("net_worth", d.formatCurrency(overview.net_worth.net_worth));
+      setKpi("net_worth_as_of", `As of ${overview.net_worth.as_of}`);
       setKpi("savings", d.formatCurrency(overview.net_worth.savings));
       setKpi("mortgage", d.formatCurrency(-overview.net_worth.mortgage));
+      setKpi("investments", d.formatCurrency(overview.net_worth.investments));
     }
     setKpi("mtd_income", d.formatCurrency(overview.month_to_date.income));
     setKpi("mtd_expenses", d.formatCurrency(-overview.month_to_date.expenses));
-    setKpi("mtd_net", d.formatCurrency(overview.month_to_date.net), overview.month_to_date.net);
+    setKpi("mtd_net", d.formatCurrency(overview.month_to_date.net));
+    setKpi("mtd_period", `since ${overview.month_to_date.since}`);
     setKpi("ytd_income", d.formatCurrency(overview.year_to_date.income));
     setKpi("count_accounts", d.formatInt(overview.counts.accounts));
     setKpi("count_statements", d.formatInt(overview.counts.statements));
     setKpi("count_transactions", d.formatInt(overview.counts.transactions));
     setKpi("count_uncategorised", d.formatInt(overview.counts.uncategorised));
 
-    const series = await d.fetchJson("/api/dashboard/net-worth/");
-    new Chart(document.getElementById("net-worth-chart"), {
+    const networth = await d.fetchJson("/api/dashboard/net-worth/");
+    if (networth.length) {
+      document.getElementById("period-label").textContent = `${networth[0].as_of} → ${networth[networth.length - 1].as_of}`;
+    }
+    new Chart(document.getElementById("hero-chart"), {
       type: "line",
       data: {
-        labels: series.map(r => r.as_of),
+        labels: networth.map(r => r.as_of),
+        datasets: [{
+          label: "Net worth", data: networth.map(r => r.net_worth),
+          borderColor: d.accents.accent, backgroundColor: "rgba(99,102,241,0.10)",
+          tension: 0.3, fill: true, pointRadius: 0,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: { x: { display: false }, y: { display: false } },
+      },
+    });
+
+    const cashflow = await d.fetchJson("/api/dashboard/cashflow/");
+    const recent = cashflow.slice(-12);
+    new Chart(document.getElementById("cashflow-chart"), {
+      type: "bar",
+      data: {
+        labels: recent.map(r => r.period),
         datasets: [
-          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#818cf8", backgroundColor: "rgba(129,140,248,0.12)", fill: true, tension: 0.25 },
-          { label: "Savings",   data: series.map(r => r.savings),   borderColor: "#34d399", tension: 0.25 },
-          { label: "Mortgage",  data: series.map(r => -r.mortgage), borderColor: "#fb7185", tension: 0.25 },
+          { label: "Income",   data: recent.map(r => r.income),    backgroundColor: d.accents.income },
+          { label: "Expenses", data: recent.map(r => -r.expenses), backgroundColor: d.accents.expense },
+          { label: "Net",      data: recent.map(r => r.net), type: "line", borderColor: d.accents.accent, tension: 0.25, pointRadius: 0 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
     });
 
-    const accounts = await d.fetchJson("/api/dashboard/accounts/");
-    const tbody = document.getElementById("accounts-tbody");
-    if (!accounts.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty">No accounts yet.</td></tr>';
+    const expenses = await d.fetchJson("/api/dashboard/expenses/");
+    const topCats = [...expenses.by_category].sort((a, b) => b.total - a.total).slice(0, 8);
+    new Chart(document.getElementById("categories-chart"), {
+      type: "doughnut",
+      data: {
+        labels: topCats.map(c => c.category),
+        datasets: [{ data: topCats.map(c => c.total), backgroundColor: topCats.map(c => d.colourFor(c.category)), borderWidth: 0 }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } }, cutout: "62%" },
+    });
+
+    const txnsResp = await d.fetchJson("/api/transactions/?page_size=8");
+    const recentBody = document.querySelector("#recent-table tbody");
+    if (!txnsResp.results.length) {
+      recentBody.innerHTML = '<tr><td colspan="3" class="empty">No transactions yet.</td></tr>';
     } else {
-      tbody.innerHTML = accounts.map(a => `
+      recentBody.innerHTML = txnsResp.results.map(t => {
+        const amt = parseFloat(t.amount);
+        const catTag = t.category
+          ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
+          : '<span class="tag transfer">uncategorised</span>';
+        const desc = t.description.length > 42 ? t.description.slice(0, 42) + "…" : t.description;
+        return `
+          <tr>
+            <td class="whitespace-nowrap text-zinc-500 text-xs">${t.date}</td>
+            <td>
+              <div class="font-medium">${desc}</div>
+              <div class="text-xs text-zinc-500 mt-0.5">${catTag}</div>
+            </td>
+            <td class="num font-medium ${amt >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(amt, true)}</td>
+          </tr>`;
+      }).join("");
+    }
+
+    const accounts = await d.fetchJson("/api/dashboard/accounts/");
+    const accountsBody = document.getElementById("accounts-tbody");
+    if (!accounts.length) {
+      accountsBody.innerHTML = '<tr><td colspan="5" class="empty">No accounts yet.</td></tr>';
+    } else {
+      accountsBody.innerHTML = accounts.map(a => `
         <tr>
           <td class="font-medium">${a.name}</td>
-          <td class="text-zinc-400">${a.bank}</td>
+          <td class="text-zinc-500">${a.bank}</td>
           <td><span class="tag ${a.scope}">${a.scope}</span></td>
           <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
           <td class="text-zinc-500">${a.last_movement || "—"}</td>

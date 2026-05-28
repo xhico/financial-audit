@@ -3,9 +3,14 @@
 {% block title %}Accounts{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Accounts</h1>
+<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Accounts</h1>
 
-<section class="panel">
+<div id="account-cards" class="grid grid-cols-12 gap-3 mb-3">
+  <div class="tile col-span-12 empty">Loading…</div>
+</div>
+
+<div class="tile col-span-12">
+  <div class="tile-label mb-3">All accounts</div>
   <table class="table-data">
     <thead>
       <tr>
@@ -15,12 +20,34 @@
     </thead>
     <tbody id="accounts-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
   </table>
-</section>
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/accounts/");
+
+    // Per-account hero cards
+    const cards = document.getElementById("account-cards");
+    if (!data.length) {
+      cards.innerHTML = '<div class="tile col-span-12 empty">No accounts yet.</div>';
+    } else {
+      cards.innerHTML = data.map(a => {
+        const tone = a.scope === "business" ? "investment" : "accent";
+        return `
+          <div class="tile ${tone} col-span-12 md:col-span-4">
+            <div class="flex items-baseline justify-between">
+              <div class="tile-label">${a.scope}</div>
+              <div class="text-xs text-zinc-500">${a.bank}</div>
+            </div>
+            <div class="font-medium mt-2">${a.name}</div>
+            <div class="stat-num mt-1">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</div>
+            <div class="text-xs text-zinc-500 mt-2">Last movement ${a.last_movement || "—"}</div>
+          </div>`;
+      }).join("");
+    }
+
+    // Full table
     const tbody = document.getElementById("accounts-tbody");
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts yet.</td></tr>';
@@ -29,9 +56,9 @@
     tbody.innerHTML = data.map(a => `
       <tr>
         <td class="font-medium">${a.name}</td>
-        <td class="text-zinc-400">${a.bank}</td>
+        <td class="text-zinc-500">${a.bank}</td>
         <td><span class="tag ${a.scope}">${a.scope}</span></td>
-        <td class="text-zinc-400">${a.kind}</td>
+        <td class="text-zinc-500">${a.kind}</td>
         <td class="text-xs tabular-nums text-zinc-500">${a.iban}</td>
         <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
         <td class="text-zinc-500">${a.last_movement || "—"}</td>

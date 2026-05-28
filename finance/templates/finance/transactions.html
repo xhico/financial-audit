@@ -3,12 +3,12 @@
 {% block title %}Transactions{% endblock %}
 
 {% block content %}
-<div class="flex items-end justify-between flex-wrap gap-3">
-  <h1 class="text-2xl font-bold tracking-tight text-zinc-100">Transactions</h1>
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900">Transactions</h1>
   <span class="text-sm text-zinc-500" id="pager-status"></span>
 </div>
 
-<form class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex flex-wrap gap-4 items-end" id="filters" onsubmit="event.preventDefault(); window.loadTxns(1);">
+<form class="tile mb-3 flex flex-wrap gap-4 items-end" id="filters" onsubmit="event.preventDefault(); window.loadTxns(1);">
   <label class="filter-field">Scope
     <select name="scope">
       <option value="">All</option>
@@ -32,14 +32,14 @@
   </label>
   <label class="filter-field">From <input name="date_from" type="date"></label>
   <label class="filter-field">To <input name="date_to" type="date"></label>
-  <label class="text-xs font-medium text-zinc-400 flex items-center gap-2 pb-1.5">
-    <input name="uncategorised" type="checkbox" value="1" class="w-4 h-4 accent-indigo-600">
+  <label class="text-xs font-medium text-zinc-600 flex items-center gap-2 pb-1.5">
+    <input name="uncategorised" type="checkbox" value="1" class="w-4 h-4 accent-zinc-900">
     Uncategorised only
   </label>
   <button type="submit" class="btn-primary">Apply</button>
 </form>
 
-<section class="panel p-0 overflow-hidden">
+<div class="tile p-0 overflow-hidden">
   <table class="table-data">
     <thead>
       <tr>
@@ -49,11 +49,11 @@
     </thead>
     <tbody id="txn-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
   </table>
-  <div class="flex items-center justify-end gap-2 p-3 border-t border-zinc-800 bg-zinc-900">
+  <div class="flex items-center justify-end gap-2 p-3 border-t border-zinc-100 bg-zinc-50/70">
     <button type="button" class="btn-ghost" id="prev-page" onclick="window.loadTxns(window.currentPage - 1)">‹ Prev</button>
     <button type="button" class="btn-ghost" id="next-page" onclick="window.loadTxns(window.currentPage + 1)">Next ›</button>
   </div>
-</section>
+</div>
 
 <script>
   window.currentPage = 1;
@@ -78,17 +78,17 @@
         const bal = t.balance !== null ? d.formatCurrency(parseFloat(t.balance), true) : "—";
         const catTag = t.category
           ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
-          : '<span class="tag">uncategorised</span>';
+          : '<span class="tag transfer">uncategorised</span>';
         return `
           <tr>
-            <td class="whitespace-nowrap text-zinc-400">${t.date}</td>
+            <td class="whitespace-nowrap text-zinc-500">${t.date}</td>
             <td>
               <div class="font-medium">${t.account.name}</div>
               <div class="text-xs text-zinc-500">${t.account.scope}</div>
             </td>
             <td class="max-w-md truncate" title="${t.description.replace(/"/g, "&quot;")}">${t.description}</td>
             <td>${catTag}</td>
-            <td class="num font-medium ${amt >= 0 ? "text-emerald-400" : "text-rose-400"}">${d.formatCurrency(amt, true)}</td>
+            <td class="num font-medium ${amt >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(amt, true)}</td>
             <td class="num text-zinc-500">${bal}</td>
           </tr>`;
       }).join("");

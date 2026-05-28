@@ -3,38 +3,53 @@
 {% block title %}Income{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Income</h1>
+<h1 class="text-3xl font-semibold tracking-tight text-zinc-900 mb-6">Income</h1>
 
-<section class="panel">
-  <h2>Monthly income</h2>
-  <div class="chart-wrap"><canvas id="income-monthly-chart"></canvas></div>
-</section>
+<div class="grid grid-cols-12 gap-3">
 
-<section class="panel">
-  <h2>Quarterly income</h2>
-  <div class="chart-wrap"><canvas id="income-quarterly-chart"></canvas></div>
-</section>
-
-<section class="panel">
-  <h2>Monthly totals</h2>
-  <div class="max-w-md">
-    <table class="table-data">
-      <thead><tr><th>Month</th><th class="num">Income</th></tr></thead>
-      <tbody id="income-tbody"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
-    </table>
+  <div class="tile income col-span-12 md:col-span-4 flex flex-col justify-between">
+    <div>
+      <div class="tile-label">Total income</div>
+      <div class="stat-num hero" id="kpi-total">—</div>
+    </div>
+    <div class="text-sm text-emerald-700 mt-2" id="kpi-months">—</div>
   </div>
-</section>
+
+  <div class="tile col-span-12 md:col-span-8">
+    <div class="tile-label mb-3">Monthly income</div>
+    <div class="chart-wrap tall"><canvas id="income-monthly-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12 md:col-span-7">
+    <div class="tile-label mb-3">Quarterly income</div>
+    <div class="chart-wrap"><canvas id="income-quarterly-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12 md:col-span-5">
+    <div class="tile-label mb-3">Monthly totals</div>
+    <div class="max-h-[300px] overflow-auto">
+      <table class="table-data">
+        <thead><tr><th>Month</th><th class="num">Income</th></tr></thead>
+        <tbody id="income-tbody"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
 
 <script>
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/income/");
+    const total = data.monthly.reduce((s, r) => s + r.income, 0);
+    document.getElementById("kpi-total").textContent = d.formatCurrency(total);
+    document.getElementById("kpi-months").textContent = `Across ${data.monthly.length} months`;
 
     new Chart(document.getElementById("income-monthly-chart"), {
       type: "bar",
       data: {
         labels: data.monthly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: "#34d399" }],
+        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: d.accents.income }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
@@ -43,7 +58,7 @@
       type: "bar",
       data: {
         labels: data.quarterly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: "#818cf8" }],
+        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: d.accents.accent }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
@@ -53,7 +68,7 @@
       tbody.innerHTML = '<tr><td colspan="2" class="empty">No income recorded yet.</td></tr>';
     } else {
       tbody.innerHTML = data.monthly.map(r => `
-        <tr><td>${r.period}</td><td class="num text-emerald-400 font-medium">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
+        <tr><td>${r.period}</td><td class="num text-emerald-600 font-medium">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
     }
   });
 </script>
