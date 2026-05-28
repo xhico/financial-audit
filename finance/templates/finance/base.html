@@ -36,7 +36,13 @@
   <header class="topbar">
     <div class="topbar-inner">
       <a class="brand" href="{% url 'pages:overview' %}">
-        <span class="brand-mark">€</span>
+        <span class="brand-mark">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
+            <rect x="5"  y="14" width="3" height="6"  rx="1"/>
+            <rect x="10" y="9"  width="3" height="11" rx="1"/>
+            <rect x="15" y="4"  width="3" height="16" rx="1"/>
+          </svg>
+        </span>
         <span>FinancialAudit</span>
       </a>
       <nav class="topnav">
