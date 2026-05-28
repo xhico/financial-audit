@@ -3,7 +3,7 @@
 {% block title %}Income{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-slate-900">Income</h1>
+<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Income</h1>
 
 <section class="panel">
   <h2>Monthly income</h2>
@@ -34,7 +34,7 @@
       type: "bar",
       data: {
         labels: data.monthly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: "#10b981" }],
+        datasets: [{ label: "Income", data: data.monthly.map(r => r.income), backgroundColor: "#34d399" }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
@@ -43,7 +43,7 @@
       type: "bar",
       data: {
         labels: data.quarterly.map(r => r.period),
-        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: "#6366f1" }],
+        datasets: [{ label: "Income", data: data.quarterly.map(r => r.income), backgroundColor: "#818cf8" }],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
@@ -53,7 +53,7 @@
       tbody.innerHTML = '<tr><td colspan="2" class="empty">No income recorded yet.</td></tr>';
     } else {
       tbody.innerHTML = data.monthly.map(r => `
-        <tr><td>${r.period}</td><td class="num text-emerald-600 font-medium">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
+        <tr><td>${r.period}</td><td class="num text-emerald-400 font-medium">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
     }
   });
 </script>

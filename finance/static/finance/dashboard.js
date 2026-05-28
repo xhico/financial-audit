@@ -18,12 +18,12 @@ window.dashboard = (function () {
   });
   const intFmt = new Intl.NumberFormat("en-IE");
 
-  // Palette aligned with the CSS tokens, picked to read well on white
+  // Palette tuned for dark backgrounds: brighter, slightly less saturated
   const palette = [
-    "#6366f1", "#10b981", "#ef4444", "#f59e0b", "#8b5cf6",
-    "#0ea5e9", "#f97316", "#06b6d4", "#a855f7", "#3b82f6",
-    "#84cc16", "#ec4899", "#14b8a6", "#f43f5e", "#22c55e",
-    "#eab308", "#a16207", "#475569", "#0d9488", "#9333ea",
+    "#818cf8", "#34d399", "#fb7185", "#fbbf24", "#a78bfa",
+    "#38bdf8", "#fb923c", "#22d3ee", "#c084fc", "#60a5fa",
+    "#a3e635", "#f472b6", "#2dd4bf", "#f87171", "#4ade80",
+    "#facc15", "#d4d4d8", "#94a3b8", "#5eead4", "#d8b4fe",
   ];
 
   function colourFor(key) {
@@ -58,11 +58,17 @@ window.dashboard = (function () {
     Chart.defaults.font.family =
       '"Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
     Chart.defaults.font.size = 12;
-    Chart.defaults.color = "#64748b";
-    Chart.defaults.borderColor = "#e5e8ef";
+    // Dark theme: muted axis labels in zinc-400, gridlines in zinc-800
+    Chart.defaults.color = "#a1a1aa";
+    Chart.defaults.borderColor = "#27272a";
     Chart.defaults.plugins.tooltip.padding = 10;
     Chart.defaults.plugins.tooltip.cornerRadius = 10;
-    Chart.defaults.plugins.tooltip.backgroundColor = "rgba(15, 23, 42, 0.92)";
+    // Slightly lifted zinc-900 with a hairline ring for the tooltip
+    Chart.defaults.plugins.tooltip.backgroundColor = "rgba(24, 24, 27, 0.95)";
+    Chart.defaults.plugins.tooltip.borderColor = "rgba(63, 63, 70, 0.8)";
+    Chart.defaults.plugins.tooltip.borderWidth = 1;
+    Chart.defaults.plugins.tooltip.titleColor = "#fafafa";
+    Chart.defaults.plugins.tooltip.bodyColor = "#e4e4e7";
     Chart.defaults.plugins.tooltip.titleFont = { weight: "600" };
     Chart.defaults.plugins.tooltip.bodySpacing = 4;
     Chart.defaults.plugins.legend.labels.usePointStyle = true;

@@ -3,7 +3,7 @@
 {% block title %}Accounts{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-slate-900">Accounts</h1>
+<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Accounts</h1>
 
 <section class="panel">
   <table class="table-data">
@@ -29,12 +29,12 @@
     tbody.innerHTML = data.map(a => `
       <tr>
         <td class="font-medium">${a.name}</td>
-        <td class="text-slate-600">${a.bank}</td>
+        <td class="text-zinc-400">${a.bank}</td>
         <td><span class="tag ${a.scope}">${a.scope}</span></td>
-        <td class="text-slate-600">${a.kind}</td>
-        <td class="text-xs tabular-nums text-slate-500">${a.iban}</td>
+        <td class="text-zinc-400">${a.kind}</td>
+        <td class="text-xs tabular-nums text-zinc-500">${a.iban}</td>
         <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
-        <td class="text-slate-500">${a.last_movement || "—"}</td>
+        <td class="text-zinc-500">${a.last_movement || "—"}</td>
       </tr>`).join("");
   });
 </script>

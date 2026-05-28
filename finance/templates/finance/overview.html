@@ -3,7 +3,7 @@
 {% block title %}Overview{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-slate-900">Overview</h1>
+<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Overview</h1>
 
 <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
   <div class="kpi-card md:col-span-2">
@@ -11,12 +11,12 @@
     <div class="kpi-value" data-kpi="net_worth">—</div>
     <div class="kpi-sub" data-kpi="net_worth_as_of"></div>
   </div>
-  <div class="kpi-card"><div class="kpi-label">Savings</div><div class="kpi-value text-emerald-600" data-kpi="savings">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">Mortgage</div><div class="kpi-value text-rose-600" data-kpi="mortgage">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">MTD income</div><div class="kpi-value text-emerald-600" data-kpi="mtd_income">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">MTD expenses</div><div class="kpi-value text-rose-600" data-kpi="mtd_expenses">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Savings</div><div class="kpi-value text-emerald-400" data-kpi="savings">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">Mortgage</div><div class="kpi-value text-rose-400" data-kpi="mortgage">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">MTD income</div><div class="kpi-value text-emerald-400" data-kpi="mtd_income">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">MTD expenses</div><div class="kpi-value text-rose-400" data-kpi="mtd_expenses">—</div></div>
   <div class="kpi-card"><div class="kpi-label">MTD net</div><div class="kpi-value" data-kpi="mtd_net">—</div></div>
-  <div class="kpi-card"><div class="kpi-label">YTD income</div><div class="kpi-value text-emerald-600" data-kpi="ytd_income">—</div></div>
+  <div class="kpi-card"><div class="kpi-label">YTD income</div><div class="kpi-value text-emerald-400" data-kpi="ytd_income">—</div></div>
 </section>
 
 <section class="panel">
@@ -35,10 +35,10 @@
 <section class="panel">
   <h2>Library</h2>
   <dl class="grid grid-cols-2 md:grid-cols-4 gap-4">
-    <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Accounts</dt>       <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_accounts">—</dd></div>
-    <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Statements</dt>     <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_statements">—</dd></div>
-    <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Transactions</dt>   <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_transactions">—</dd></div>
-    <div><dt class="text-xs font-medium text-slate-500 uppercase tracking-wider">Uncategorised</dt>  <dd class="text-xl font-semibold tabular-nums mt-1 text-amber-600" data-kpi="count_uncategorised">—</dd></div>
+    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Accounts</dt>       <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_accounts">—</dd></div>
+    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Statements</dt>     <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_statements">—</dd></div>
+    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Transactions</dt>   <dd class="text-xl font-semibold tabular-nums mt-1" data-kpi="count_transactions">—</dd></div>
+    <div><dt class="text-xs font-medium text-zinc-500 uppercase tracking-wider">Uncategorised</dt>  <dd class="text-xl font-semibold tabular-nums mt-1 text-amber-400" data-kpi="count_uncategorised">—</dd></div>
   </dl>
 </section>
 
@@ -51,9 +51,9 @@
       document.querySelectorAll(`[data-kpi="${key}"]`).forEach(el => {
         el.textContent = value;
         if (signedValue !== undefined) {
-          el.classList.remove("text-emerald-600", "text-rose-600");
-          if (signedValue > 0) el.classList.add("text-emerald-600");
-          else if (signedValue < 0) el.classList.add("text-rose-600");
+          el.classList.remove("text-emerald-400", "text-rose-400");
+          if (signedValue > 0) el.classList.add("text-emerald-400");
+          else if (signedValue < 0) el.classList.add("text-rose-400");
         }
       });
     };
@@ -79,9 +79,9 @@
       data: {
         labels: series.map(r => r.as_of),
         datasets: [
-          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#6366f1", backgroundColor: "rgba(99,102,241,0.12)", fill: true, tension: 0.25 },
-          { label: "Savings",   data: series.map(r => r.savings),   borderColor: "#10b981", tension: 0.25 },
-          { label: "Mortgage",  data: series.map(r => -r.mortgage), borderColor: "#f43f5e", tension: 0.25 },
+          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#818cf8", backgroundColor: "rgba(129,140,248,0.12)", fill: true, tension: 0.25 },
+          { label: "Savings",   data: series.map(r => r.savings),   borderColor: "#34d399", tension: 0.25 },
+          { label: "Mortgage",  data: series.map(r => -r.mortgage), borderColor: "#fb7185", tension: 0.25 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
@@ -95,10 +95,10 @@
       tbody.innerHTML = accounts.map(a => `
         <tr>
           <td class="font-medium">${a.name}</td>
-          <td class="text-slate-600">${a.bank}</td>
+          <td class="text-zinc-400">${a.bank}</td>
           <td><span class="tag ${a.scope}">${a.scope}</span></td>
           <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
-          <td class="text-slate-500">${a.last_movement || "—"}</td>
+          <td class="text-zinc-500">${a.last_movement || "—"}</td>
         </tr>`).join("");
     }
   });

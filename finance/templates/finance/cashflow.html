@@ -3,7 +3,7 @@
 {% block title %}Cashflow{% endblock %}
 
 {% block content %}
-<h1 class="text-2xl font-bold tracking-tight text-slate-900">Cashflow</h1>
+<h1 class="text-2xl font-bold tracking-tight text-zinc-100">Cashflow</h1>
 
 <section class="panel">
   <h2>Monthly income vs expenses</h2>
@@ -28,9 +28,9 @@
       data: {
         labels: data.map(r => r.period),
         datasets: [
-          { label: "Income",   data: data.map(r => r.income),    backgroundColor: "#10b981" },
-          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#f43f5e" },
-          { label: "Net",      data: data.map(r => r.net), type: "line", borderColor: "#6366f1", backgroundColor: "#6366f1", tension: 0.25 },
+          { label: "Income",   data: data.map(r => r.income),    backgroundColor: "#34d399" },
+          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#fb7185" },
+          { label: "Net",      data: data.map(r => r.net), type: "line", borderColor: "#818cf8", backgroundColor: "#818cf8", tension: 0.25 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
@@ -43,9 +43,9 @@
       tbody.innerHTML = data.map(r => `
         <tr>
           <td>${r.period}</td>
-          <td class="num text-emerald-600">${d.formatCurrency(r.income, true)}</td>
-          <td class="num text-rose-600">${d.formatCurrency(-r.expenses, true)}</td>
-          <td class="num font-semibold ${r.net >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(r.net, true)}</td>
+          <td class="num text-emerald-400">${d.formatCurrency(r.income, true)}</td>
+          <td class="num text-rose-400">${d.formatCurrency(-r.expenses, true)}</td>
+          <td class="num font-semibold ${r.net >= 0 ? "text-emerald-400" : "text-rose-400"}">${d.formatCurrency(r.net, true)}</td>
         </tr>`).join("");
     }
   });
