@@ -9,11 +9,17 @@ one idempotent code path.
 """
 
 from dataclasses import dataclass
+from datetime import date
 
 from django.db import transaction
 
-from finance.models import Account, BalanceSnapshot, CategoryRule, StatementImport, Transaction
+from finance.models import Account, BalanceSnapshot, Category, CategoryRule, StatementImport, Transaction
+from finance.parsers import degiro as degiro_parser
 from finance.parsers import parse
+
+# Synthetic IBAN for the Degiro Cash Account; not a real PT IBAN since the
+# broker is German-domiciled, but stable so the account is reused across imports
+DEGIRO_IBAN = "DEGIROCASHACCOUNT"
 
 # Maps the parser bank key onto a readable bank name for the Account
 BANK_NAMES = {
@@ -145,6 +151,73 @@ def import_statement(text, source_file=""):
     classify_transactions(statement.transactions.all())
 
     return ImportResult(statement=statement, created=created, skipped=skipped, accounts=touched_accounts)
+
+
+@transaction.atomic
+def import_degiro_report(text, source_file=""):
+    """
+    Import a Degiro annual report's net flow as a single Investment movement.
+
+    Creates (or reuses) the Degiro Cash Account and inserts one transaction
+    per year representing the net deposits, dated December 31 of that year.
+    Re-importing the same report is safe; the dedupe key absorbs it.
+
+    Args:
+        text (str): The extracted report text
+        source_file (str): Original filename, kept for traceability
+
+    Returns:
+        dict: Summary including the year, parsed figures and whether the
+        transaction was newly created or skipped
+
+    Raises:
+        ValueError: When the report cannot be parsed
+    """
+
+    parsed = degiro_parser.parse(text)
+
+    # Reuse one Degiro account across imports, owned personally by the user
+    account, _ = Account.objects.get_or_create(
+        iban=DEGIRO_IBAN,
+        defaults={
+            "name": "Degiro",
+            "bank": "flatexDEGIRO Bank",
+            "scope": Account.Scope.PERSONAL,
+            "role": Account.Role.PERSONAL,
+            "kind": Account.Kind.TERM,
+        },
+    )
+    investment_cat, _ = Category.objects.get_or_create(name="Investment", defaults={"kind": Category.Kind.INVESTMENT})
+
+    # Bank-side perspective: a net deposit reads as negative (money leaving
+    # the user's bank to land at the broker)
+    year_end = date(parsed.year, 12, 31)
+    net = parsed.deposits - parsed.withdrawals
+    description = f"Annual movement {parsed.year}: deposits €{parsed.deposits}, withdrawals €{parsed.withdrawals}"
+    amount = -net
+
+    key = Transaction.build_dedupe_key(account.id, year_end, description, amount, None)
+    _, was_created = Transaction.objects.get_or_create(
+        dedupe_key=key,
+        defaults={
+            "account": account,
+            "date": year_end,
+            "description": description,
+            "amount": amount,
+            "balance": None,
+            "category": investment_cat,
+        },
+    )
+
+    return {
+        "year": parsed.year,
+        "account": account,
+        "deposits": parsed.deposits,
+        "withdrawals": parsed.withdrawals,
+        "net": net,
+        "created": 1 if was_created else 0,
+        "skipped": 0 if was_created else 1,
+    }
 
 
 def classify_transactions(transactions=None):
