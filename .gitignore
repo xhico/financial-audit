@@ -130,6 +130,9 @@ celerybeat.pid
 # Private finance seed rules (real account/vendor match strings)
 seed_rules.json
 
+# Compiled Tailwind CSS (built by the Dockerfile's tailwind stage)
+finance/static/finance/tailwind.css
+
 # Environments
 .env
 .env.*
