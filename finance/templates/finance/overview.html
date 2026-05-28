@@ -130,7 +130,7 @@
     setKpi("count_uncategorised", d.formatInt(overview.counts.uncategorised));
 
     const cashflow = await d.fetchJson("/api/dashboard/cashflow/");
-    const recent = cashflow.slice(-12);
+    const recent = (cashflow.all || []).slice(-12);
     new Chart(document.getElementById("cashflow-chart"), {
       type: "bar",
       data: {

@@ -144,60 +144,84 @@ class ExpensesView(APIView):
         return Response({"monthly": monthly, "by_category": by_category, "monthly_by_category": monthly_by_category})
 
 
+def _cashflow_series(scope=None):
+    """
+    Compute the monthly income / expenses / net series for one scope.
+
+    Args:
+        scope (str | None): "personal", "business", or None for everything
+
+    Returns:
+        list[dict]: One entry per month, oldest first
+    """
+
+    base = Transaction.objects.all()
+    if scope:
+        base = base.filter(account__scope=scope)
+
+    # Sum income credits per month
+    inc_rows = (
+        base.filter(category__kind=Category.Kind.INCOME)
+        .annotate(month=TruncMonth("date"))
+        .values("month")
+        .annotate(total=Sum("amount"))
+    )
+    # Sum expense and tax debits per month
+    exp_rows = (
+        base.filter(category__kind__in=EXPENSE_KINDS)
+        .annotate(month=TruncMonth("date"))
+        .values("month")
+        .annotate(total=Sum("amount"))
+    )
+
+    # Merge the two streams on the month key
+    bucket = {}
+    for r in inc_rows:
+        key = _month_key(r["month"])
+        bucket.setdefault(key, {"income": 0.0, "expenses": 0.0})
+        bucket[key]["income"] = float(r["total"])
+    for r in exp_rows:
+        key = _month_key(r["month"])
+        bucket.setdefault(key, {"income": 0.0, "expenses": 0.0})
+        # Store expenses as a positive magnitude
+        bucket[key]["expenses"] = -float(r["total"])
+
+    series = []
+    for key in sorted(bucket):
+        row = bucket[key]
+        row["period"] = key
+        row["net"] = row["income"] - row["expenses"]
+        series.append(row)
+    return series
+
+
 class CashflowView(APIView):
     """
-    Monthly net cashflow (income minus expenses).
+    Monthly net cashflow (income minus expenses), broken down by scope.
 
-    - Income, expenses and net per month
-    - Internal transfers and investments are excluded from in/out totals
+    - Three series in one response: all, business and personal
+    - Internal transfers and investments are excluded from in / out totals
     """
 
     def get(self, request):
         """
-        Return the cashflow series.
+        Return the cashflow series for each scope.
 
         Args:
             request (Request): The incoming request
 
         Returns:
-            Response: One entry per month with income, expenses and net
+            Response: A dict with keys "all", "business" and "personal", each
+            mapping to a list of monthly income / expenses / net entries
         """
 
-        # Income credits per month
-        inc_rows = (
-            Transaction.objects.filter(category__kind=Category.Kind.INCOME)
-            .annotate(month=TruncMonth("date"))
-            .values("month")
-            .annotate(total=Sum("amount"))
+        return Response(
+            {
+                "all": _cashflow_series(),
+                "business": _cashflow_series(scope="business"),
+                "personal": _cashflow_series(scope="personal"),
+            }
         )
-        # Expense and tax debits per month
-        exp_rows = (
-            Transaction.objects.filter(category__kind__in=EXPENSE_KINDS)
-            .annotate(month=TruncMonth("date"))
-            .values("month")
-            .annotate(total=Sum("amount"))
-        )
-
-        # Merge the two streams on the month key
-        bucket = {}
-        for r in inc_rows:
-            key = _month_key(r["month"])
-            bucket.setdefault(key, {"income": 0.0, "expenses": 0.0})
-            bucket[key]["income"] = float(r["total"])
-        for r in exp_rows:
-            key = _month_key(r["month"])
-            bucket.setdefault(key, {"income": 0.0, "expenses": 0.0})
-            # Store expenses as a positive magnitude
-            bucket[key]["expenses"] = -float(r["total"])
-
-        series = []
-        for key in sorted(bucket):
-            row = bucket[key]
-            row["period"] = key
-            row["net"] = row["income"] - row["expenses"]
-            series.append(row)
-
-        return Response(series)
 
 
 def _account_balance_at(account, on_date):

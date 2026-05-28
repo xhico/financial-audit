@@ -144,14 +144,27 @@ def test_cashflow_endpoint_nets_income_and_expense(api_client, seeded):
     response = api_client.get("/api/dashboard/cashflow/")
 
     assert response.status_code == 200
-    months = {row["period"]: row for row in response.data}
-    # April: income 1500, expenses 300, net 1200
-    assert months["2026-04"]["income"] == 1500.0
-    assert months["2026-04"]["expenses"] == 300.0
-    assert months["2026-04"]["net"] == 1200.0
+    body = response.data
+    # The response now ships three scoped series side by side
+    assert set(body) == {"all", "business", "personal"}
+
+    all_months = {row["period"]: row for row in body["all"]}
+    # April: income 1500 (personal salary), expenses 300 (100 groceries + 200 tax),
+    # net 1200 across the combined view
+    assert all_months["2026-04"]["income"] == 1500.0
+    assert all_months["2026-04"]["expenses"] == 300.0
+    assert all_months["2026-04"]["net"] == 1200.0
     # March: income 1500, no expenses
-    assert months["2026-03"]["income"] == 1500.0
-    assert months["2026-03"]["expenses"] == 0.0
+    assert all_months["2026-03"]["income"] == 1500.0
+    assert all_months["2026-03"]["expenses"] == 0.0
+
+    # Scoped views: business only has the VAT tax debit, personal only the salary + groceries
+    biz_apr = next(r for r in body["business"] if r["period"] == "2026-04")
+    assert biz_apr["income"] == 0.0
+    assert biz_apr["expenses"] == 200.0
+    personal_apr = next(r for r in body["personal"] if r["period"] == "2026-04")
+    assert personal_apr["income"] == 1500.0
+    assert personal_apr["expenses"] == 100.0
 
 
 @pytest.mark.django_db
