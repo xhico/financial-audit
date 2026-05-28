@@ -1,0 +1,174 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Investments{% endblock %}
+
+{% block content %}
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Investments</h1>
+  <div class="tab-group" id="view-tabs">
+    <button type="button" data-view="all"      class="is-active">All</button>
+    <button type="button" data-view="business">Business</button>
+    <button type="button" data-view="personal">Personal</button>
+  </div>
+</div>
+
+<div class="grid grid-cols-12 gap-3">
+
+  <div class="tile investment col-span-12 md:col-span-4">
+    <div class="tile-label">Net invested</div>
+    <div class="stat-num hero" id="kpi-net">—</div>
+    <div class="text-sm text-cyan-700 dark:text-cyan-300 mt-2" id="kpi-months">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-4">
+    <div class="tile-label">YTD invested</div>
+    <div class="stat-num" id="kpi-ytd">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-4">
+    <div class="tile-label">Last month</div>
+    <div class="stat-num" id="kpi-last">—</div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Cumulative invested</div>
+    <div class="chart-wrap tall"><canvas id="cumulative-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="tile-label mb-3">Monthly flow</div>
+    <div class="chart-wrap"><canvas id="flow-chart"></canvas></div>
+  </div>
+
+  <div class="tile col-span-12 md:col-span-5">
+    <div class="tile-label mb-3">By category</div>
+    <table class="table-data">
+      <thead><tr><th>Category</th><th class="num">Net invested</th></tr></thead>
+      <tbody id="by-cat-tbody"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="tile col-span-12 md:col-span-7">
+    <div class="flex items-baseline justify-between mb-3">
+      <div class="tile-label">Recent investment transactions</div>
+      <a class="text-xs text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100" href="{% url 'pages:transactions' %}?kind=investment">View all →</a>
+    </div>
+    <table class="table-data">
+      <thead><tr><th>Date</th><th>Description</th><th class="num">Amount</th></tr></thead>
+      <tbody id="recent-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+  let cumChart = null;
+  let flowChart = null;
+  let scopes = {};
+  let currentView = "all";
+
+  function applyView(view) {
+    currentView = view;
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.classList.toggle("is-active", b.dataset.view === view);
+    });
+    render();
+    refreshTransactions();
+  }
+
+  async function refreshTransactions() {
+    const d = window.dashboard;
+    const params = new URLSearchParams({ kind: "investment", page_size: 10 });
+    if (currentView !== "all") params.set("scope", currentView);
+    const tbody = document.getElementById("recent-tbody");
+    try {
+      const resp = await d.fetchJson("/api/transactions/?" + params.toString());
+      if (!resp.results.length) {
+        tbody.innerHTML = '<tr><td colspan="3" class="empty">No investment transactions in this view.</td></tr>';
+      } else {
+        tbody.innerHTML = resp.results.map(t => {
+          const amt = parseFloat(t.amount);
+          return `
+            <tr>
+              <td class="whitespace-nowrap text-zinc-500 text-xs">${t.date}</td>
+              <td>
+                <div class="font-medium">${t.description}</div>
+                <div class="text-xs text-zinc-500 mt-0.5">${t.account.name} · ${t.account.scope}</div>
+              </td>
+              <td class="num font-medium ${amt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-cyan-700 dark:text-cyan-300"}">${d.formatCurrency(amt, true)}</td>
+            </tr>`;
+        }).join("");
+      }
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">Failed to load transactions.</td></tr>';
+    }
+  }
+
+  function render() {
+    const d = window.dashboard;
+    const data = scopes[currentView] || { monthly: [], cumulative: [], by_category: [] };
+
+    const total = data.cumulative.length ? data.cumulative[data.cumulative.length - 1].total : 0;
+    document.getElementById("kpi-net").textContent    = d.formatCurrency(total);
+    document.getElementById("kpi-months").textContent = `Over ${data.monthly.length} months`;
+
+    const thisYear = new Date().getFullYear().toString();
+    const ytd = data.monthly.filter(r => r.period.startsWith(thisYear)).reduce((s, r) => s + r.net, 0);
+    document.getElementById("kpi-ytd").textContent = d.formatCurrency(ytd);
+
+    const last = data.monthly.length ? data.monthly[data.monthly.length - 1].net : 0;
+    document.getElementById("kpi-last").textContent = d.formatCurrency(last);
+
+    if (cumChart) cumChart.destroy();
+    cumChart = new Chart(document.getElementById("cumulative-chart"), {
+      type: "line",
+      data: {
+        labels: data.cumulative.map(r => r.period),
+        datasets: [{
+          label: "Cumulative invested",
+          data: data.cumulative.map(r => r.total),
+          borderColor: d.accents.investment,
+          backgroundColor: "rgba(6,182,212,0.10)",
+          fill: true, tension: 0.25, pointRadius: 0,
+        }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
+    });
+
+    if (flowChart) flowChart.destroy();
+    flowChart = new Chart(document.getElementById("flow-chart"), {
+      type: "bar",
+      data: {
+        labels: data.monthly.map(r => r.period),
+        datasets: [
+          { label: "Invested",  data: data.monthly.map(r => r.invested),  backgroundColor: d.accents.investment },
+          { label: "Returned",  data: data.monthly.map(r => -r.returned), backgroundColor: d.accents.income },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        scales: { x: { stacked: false }, y: { stacked: false } },
+        plugins: { legend: { position: "bottom" } },
+      },
+    });
+
+    const tbody = document.getElementById("by-cat-tbody");
+    if (!data.by_category.length) {
+      tbody.innerHTML = '<tr><td colspan="2" class="empty">No investment categories yet.</td></tr>';
+    } else {
+      tbody.innerHTML = data.by_category.map(c => `
+        <tr>
+          <td class="font-medium">${c.category}</td>
+          <td class="num text-cyan-700 dark:text-cyan-300 font-medium">${d.formatCurrency(c.net_invested, true)}</td>
+        </tr>`).join("");
+    }
+  }
+
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    scopes = await d.fetchJson("/api/dashboard/investments/");
+    document.querySelectorAll("#view-tabs button").forEach(b => {
+      b.addEventListener("click", () => applyView(b.dataset.view));
+    });
+    applyView("all");
+  });
+</script>
+{% endblock %}

@@ -9,6 +9,7 @@ from finance.api import (
     CashflowView,
     ExpensesView,
     IncomeView,
+    InvestmentsView,
     NetWorthView,
     OverviewView,
     TransactionListView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path("dashboard/expenses/", ExpensesView.as_view(), name="expenses"),
     path("dashboard/cashflow/", CashflowView.as_view(), name="cashflow"),
     path("dashboard/net-worth/", NetWorthView.as_view(), name="net-worth"),
+    path("dashboard/investments/", InvestmentsView.as_view(), name="investments"),
     path("dashboard/accounts/", AccountsView.as_view(), name="accounts"),
     path("transactions/", TransactionListView.as_view(), name="transactions"),
 ]

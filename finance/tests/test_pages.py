@@ -13,6 +13,7 @@ PAGE_PATHS = [
     "/expenses/",
     "/cashflow/",
     "/net-worth/",
+    "/investments/",
     "/accounts/",
     "/transactions/",
 ]

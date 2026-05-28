@@ -51,6 +51,7 @@
         <a href="{% url 'pages:expenses' %}"     class="{% if request.resolver_match.url_name == 'expenses' %}is-active{% endif %}">Expenses</a>
         <a href="{% url 'pages:cashflow' %}"     class="{% if request.resolver_match.url_name == 'cashflow' %}is-active{% endif %}">Cashflow</a>
         <a href="{% url 'pages:net-worth' %}"    class="{% if request.resolver_match.url_name == 'net-worth' %}is-active{% endif %}">Net worth</a>
+        <a href="{% url 'pages:investments' %}"  class="{% if request.resolver_match.url_name == 'investments' %}is-active{% endif %}">Investments</a>
         <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
         <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
       </nav>

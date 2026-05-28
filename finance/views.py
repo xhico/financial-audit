@@ -89,6 +89,21 @@ def net_worth(request):
 
 
 @login_required
+def investments(request):
+    """
+    Render the investments dashboard page.
+
+    Args:
+        request (HttpRequest): The incoming request
+
+    Returns:
+        HttpResponse: The rendered investments page
+    """
+
+    return render(request, "finance/investments.html")
+
+
+@login_required
 def accounts(request):
     """
     Render the accounts dashboard page.

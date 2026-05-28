@@ -174,6 +174,84 @@ class ExpensesView(APIView):
         )
 
 
+def _investments_series(scope=None):
+    """
+    Compute investment flows and cumulative invested for one scope.
+
+    "Invested" treats outflows (negative amounts) as money put into the
+    investment account and inflows as money pulled back out, so net invested is
+    just minus the signed sum.
+
+    Args:
+        scope (str | None): "personal", "business", or None for everything
+
+    Returns:
+        dict: {"monthly": [...], "cumulative": [...], "by_category": [...]}
+    """
+
+    base = Transaction.objects.filter(category__kind=Category.Kind.INVESTMENT)
+    if scope:
+        base = base.filter(account__scope=scope)
+
+    # Sum signed amounts per month, then split into invested (outflow) and
+    # returned (inflow) using a second pass to keep the SQL simple
+    rows = base.annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount")).order_by("month")
+    monthly_net = {_month_key(r["month"]): -float(r["total"]) for r in rows}
+
+    out_rows = (
+        base.filter(amount__lt=0).annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount"))
+    )
+    in_rows = base.filter(amount__gt=0).annotate(month=TruncMonth("date")).values("month").annotate(total=Sum("amount"))
+    invested_by_month = {_month_key(r["month"]): -float(r["total"]) for r in out_rows}
+    returned_by_month = {_month_key(r["month"]): float(r["total"]) for r in in_rows}
+
+    months = sorted(monthly_net)
+    monthly = []
+    cumulative = []
+    running = 0.0
+    for m in months:
+        invested = invested_by_month.get(m, 0.0)
+        returned = returned_by_month.get(m, 0.0)
+        net = monthly_net[m]
+        running += net
+        monthly.append({"period": m, "invested": invested, "returned": returned, "net": net})
+        cumulative.append({"period": m, "total": running})
+
+    by_cat = base.values("category__name").annotate(total=Sum("amount")).order_by("total")
+    by_category = [{"category": r["category__name"], "net_invested": -float(r["total"])} for r in by_cat]
+
+    return {"monthly": monthly, "cumulative": cumulative, "by_category": by_category}
+
+
+class InvestmentsView(APIView):
+    """
+    Investment flows broken down by scope.
+
+    - Three series in one response: all, business, personal
+    - Net invested is signed so the cumulative line trends upward as money
+      goes out to the investment account
+    """
+
+    def get(self, request):
+        """
+        Return the investment series for each scope.
+
+        Args:
+            request (Request): The incoming request
+
+        Returns:
+            Response: A dict with keys "all", "business" and "personal"
+        """
+
+        return Response(
+            {
+                "all": _investments_series(),
+                "business": _investments_series("business"),
+                "personal": _investments_series("personal"),
+            }
+        )
+
+
 def _cashflow_series(scope=None):
     """
     Compute the monthly income / expenses / net series for one scope.
