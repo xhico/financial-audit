@@ -1,0 +1,183 @@
+/*
+ * Author: xhico
+ * Date: May 27, 2026
+ * Dashboard styling — kept compact and dependency-free.
+ */
+
+:root {
+  --bg: #f5f7fa;
+  --surface: #ffffff;
+  --border: #e3e7ec;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --positive: #16a34a;
+  --negative: #dc2626;
+  --tag-income: #16a34a;
+  --tag-expense: #dc2626;
+  --tag-transfer: #6b7280;
+  --tag-investment: #7c3aed;
+  --tag-tax: #ea580c;
+  --tag-other: #2563eb;
+  --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.45;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Top navigation */
+.topbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 1.25rem;
+  gap: 1.25rem;
+}
+.topbar .brand {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--text);
+}
+.topbar .mainnav { display: flex; gap: 0.9rem; flex: 1; flex-wrap: wrap; }
+.topbar .mainnav a {
+  color: var(--muted);
+  font-size: 0.92rem;
+  padding: 0.25rem 0;
+}
+.topbar .mainnav a:hover { color: var(--text); text-decoration: none; }
+.topbar .userbar {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* Main content */
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+.content h1 { font-size: 1.5rem; margin: 0 0 1rem; }
+.content h2 { font-size: 1.1rem; margin: 1.5rem 0 0.6rem; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  box-shadow: var(--shadow);
+}
+.card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; }
+.card .value { font-size: 1.4rem; font-weight: 600; margin-top: 0.3rem; }
+.card .value.positive { color: var(--positive); }
+.card .value.negative { color: var(--negative); }
+.card .sub { color: var(--muted); font-size: 0.8rem; margin-top: 0.25rem; }
+
+/* Chart panels */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+  box-shadow: var(--shadow);
+}
+.panel h2 { margin-top: 0; }
+.chart-wrap { position: relative; height: 320px; }
+.chart-wrap.tall { height: 420px; }
+
+/* Tables */
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+table.data th, table.data td {
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.data th {
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+table.data td.num, table.data th.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.data tr:hover { background: #fafbfc; }
+
+/* Tag chips for categories */
+.tag {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  color: #fff;
+  background: var(--tag-other);
+}
+.tag.income { background: var(--tag-income); }
+.tag.expense { background: var(--tag-expense); }
+.tag.transfer { background: var(--tag-transfer); }
+.tag.investment { background: var(--tag-investment); }
+.tag.tax { background: var(--tag-tax); }
+.tag.other { background: var(--tag-other); }
+
+/* Filter form */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem 0 1rem;
+  padding: 0.85rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.filters label { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.2rem; }
+.filters input, .filters select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: inherit;
+  background: var(--surface);
+}
+.filters button {
+  align-self: end;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  font: inherit;
+}
+.filters button:hover { background: #1d4ed8; }
+
+/* Empty state */
+.empty {
+  text-align: center;
+  color: var(--muted);
+  padding: 2rem;
+}
+
+/* Utility */
+.numeric { font-variant-numeric: tabular-nums; }
+.positive { color: var(--positive); }
+.negative { color: var(--negative); }

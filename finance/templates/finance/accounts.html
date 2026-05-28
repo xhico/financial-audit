@@ -1,0 +1,41 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Accounts{% endblock %}
+
+{% block content %}
+<h1>Accounts</h1>
+
+<section class="panel">
+  <table class="data" id="accounts-table">
+    <thead>
+      <tr>
+        <th>Account</th><th>Bank</th><th>Scope</th><th>Kind</th>
+        <th>IBAN</th><th class="num">Balance</th><th>Last movement</th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<script>
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    const data = await d.fetchJson("/api/dashboard/accounts/");
+    const tbody = document.querySelector("#accounts-table tbody");
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts yet.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(a => `
+      <tr>
+        <td>${a.name}</td>
+        <td>${a.bank}</td>
+        <td>${a.scope}</td>
+        <td>${a.kind}</td>
+        <td class="numeric" style="font-size:.85em">${a.iban}</td>
+        <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
+        <td>${a.last_movement || "—"}</td>
+      </tr>`).join("");
+  });
+</script>
+{% endblock %}

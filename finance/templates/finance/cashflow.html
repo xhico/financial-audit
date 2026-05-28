@@ -1,0 +1,53 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Cashflow{% endblock %}
+
+{% block content %}
+<h1>Cashflow</h1>
+
+<section class="panel">
+  <h2>Monthly income vs. expenses</h2>
+  <div class="chart-wrap tall"><canvas id="cashflow-chart"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>Monthly totals</h2>
+  <table class="data" id="cashflow-table">
+    <thead><tr><th>Month</th><th class="num">Income</th><th class="num">Expenses</th><th class="num">Net</th></tr></thead>
+    <tbody><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<script>
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    const data = await d.fetchJson("/api/dashboard/cashflow/");
+
+    new Chart(document.getElementById("cashflow-chart"), {
+      type: "bar",
+      data: {
+        labels: data.map(r => r.period),
+        datasets: [
+          { label: "Income", data: data.map(r => r.income), backgroundColor: "#16a34a" },
+          { label: "Expenses", data: data.map(r => -r.expenses), backgroundColor: "#dc2626" },
+          { label: "Net", data: data.map(r => r.net), type: "line", borderColor: "#2563eb", tension: 0.2 },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
+    });
+
+    const tbody = document.querySelector("#cashflow-table tbody");
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No cashflow data yet.</td></tr>';
+    } else {
+      tbody.innerHTML = data.map(r => `
+        <tr>
+          <td>${r.period}</td>
+          <td class="num positive">${d.formatCurrency(r.income, true)}</td>
+          <td class="num negative">${d.formatCurrency(-r.expenses, true)}</td>
+          <td class="num ${r.net >= 0 ? "positive" : "negative"}">${d.formatCurrency(r.net, true)}</td>
+        </tr>`).join("");
+    }
+  });
+</script>
+{% endblock %}

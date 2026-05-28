@@ -1,0 +1,107 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Overview{% endblock %}
+
+{% block content %}
+<h1>Overview</h1>
+
+<section class="cards" id="kpi-cards">
+  <div class="card"><div class="label">Net worth</div><div class="value" data-kpi="net_worth">—</div><div class="sub" data-kpi="net_worth_as_of"></div></div>
+  <div class="card"><div class="label">Savings</div><div class="value" data-kpi="savings">—</div></div>
+  <div class="card"><div class="label">Mortgage</div><div class="value negative" data-kpi="mortgage">—</div></div>
+  <div class="card"><div class="label">MTD income</div><div class="value positive" data-kpi="mtd_income">—</div></div>
+  <div class="card"><div class="label">MTD expenses</div><div class="value negative" data-kpi="mtd_expenses">—</div></div>
+  <div class="card"><div class="label">MTD net</div><div class="value" data-kpi="mtd_net">—</div></div>
+  <div class="card"><div class="label">YTD income</div><div class="value positive" data-kpi="ytd_income">—</div></div>
+  <div class="card"><div class="label">YTD expenses</div><div class="value negative" data-kpi="ytd_expenses">—</div></div>
+</section>
+
+<section class="panel">
+  <h2>Net worth over time</h2>
+  <div class="chart-wrap"><canvas id="net-worth-chart"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>Accounts</h2>
+  <table class="data" id="accounts-table">
+    <thead><tr><th>Account</th><th>Bank</th><th>Scope</th><th class="num">Balance</th><th>Last movement</th></tr></thead>
+    <tbody><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<section class="panel">
+  <h2>Counts</h2>
+  <table class="data" style="max-width:480px">
+    <tbody>
+      <tr><th>Accounts</th><td class="num" data-kpi="count_accounts">—</td></tr>
+      <tr><th>Statements imported</th><td class="num" data-kpi="count_statements">—</td></tr>
+      <tr><th>Transactions</th><td class="num" data-kpi="count_transactions">—</td></tr>
+      <tr><th>Uncategorised</th><td class="num" data-kpi="count_uncategorised">—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<script>
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+
+    // Headline KPIs
+    const overview = await d.fetchJson("/api/dashboard/overview/");
+    const setKpi = (k, v, signed) => {
+      document.querySelectorAll(`[data-kpi="${k}"]`).forEach(el => {
+        el.textContent = v;
+        if (signed !== undefined) {
+          el.classList.toggle("positive", signed > 0);
+          el.classList.toggle("negative", signed < 0);
+        }
+      });
+    };
+    if (overview.net_worth) {
+      setKpi("net_worth", d.formatCurrency(overview.net_worth.net_worth));
+      setKpi("net_worth_as_of", `as of ${overview.net_worth.as_of}`);
+      setKpi("savings", d.formatCurrency(overview.net_worth.savings));
+      setKpi("mortgage", d.formatCurrency(-overview.net_worth.mortgage));
+    }
+    setKpi("mtd_income", d.formatCurrency(overview.month_to_date.income));
+    setKpi("mtd_expenses", d.formatCurrency(-overview.month_to_date.expenses));
+    setKpi("mtd_net", d.formatCurrency(overview.month_to_date.net), overview.month_to_date.net);
+    setKpi("ytd_income", d.formatCurrency(overview.year_to_date.income));
+    setKpi("ytd_expenses", d.formatCurrency(-overview.year_to_date.expenses));
+    setKpi("count_accounts", d.formatInt(overview.counts.accounts));
+    setKpi("count_statements", d.formatInt(overview.counts.statements));
+    setKpi("count_transactions", d.formatInt(overview.counts.transactions));
+    setKpi("count_uncategorised", d.formatInt(overview.counts.uncategorised));
+
+    // Net worth chart
+    const series = await d.fetchJson("/api/dashboard/net-worth/");
+    new Chart(document.getElementById("net-worth-chart"), {
+      type: "line",
+      data: {
+        labels: series.map(r => r.as_of),
+        datasets: [
+          { label: "Net worth", data: series.map(r => r.net_worth), borderColor: "#2563eb", backgroundColor: "#2563eb33", tension: 0.2, fill: true },
+          { label: "Savings", data: series.map(r => r.savings), borderColor: "#16a34a", tension: 0.2 },
+          { label: "Mortgage", data: series.map(r => -r.mortgage), borderColor: "#dc2626", tension: 0.2 },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
+    });
+
+    // Accounts table
+    const accounts = await d.fetchJson("/api/dashboard/accounts/");
+    const tbody = document.querySelector("#accounts-table tbody");
+    if (!accounts.length) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No accounts yet.</td></tr>';
+    } else {
+      tbody.innerHTML = accounts.map(a => `
+        <tr>
+          <td>${a.name}</td>
+          <td>${a.bank}</td>
+          <td>${a.scope}</td>
+          <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
+          <td>${a.last_movement || "—"}</td>
+        </tr>`).join("");
+    }
+  });
+</script>
+{% endblock %}

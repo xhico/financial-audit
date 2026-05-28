@@ -1,0 +1,92 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Expenses{% endblock %}
+
+{% block content %}
+<h1>Expenses</h1>
+
+<section class="panel">
+  <h2>By category (all time)</h2>
+  <div class="chart-wrap"><canvas id="expenses-pie-chart"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>Monthly expenses by category</h2>
+  <div class="chart-wrap tall"><canvas id="expenses-stack-chart"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>Category totals</h2>
+  <table class="data" id="expenses-table" style="max-width:560px">
+    <thead><tr><th>Category</th><th>Kind</th><th class="num">Total spent</th></tr></thead>
+    <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<script>
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    const data = await d.fetchJson("/api/dashboard/expenses/");
+
+    // Pie chart: per-category total
+    const sortedCats = [...data.by_category].sort((a, b) => b.total - a.total);
+    new Chart(document.getElementById("expenses-pie-chart"), {
+      type: "doughnut",
+      data: {
+        labels: sortedCats.map(c => c.category),
+        datasets: [{
+          data: sortedCats.map(c => c.total),
+          backgroundColor: sortedCats.map(c => d.colourFor(c.category)),
+        }],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } } },
+    });
+
+    // Stacked bar: months × categories
+    const monthsSet = new Set();
+    const catTotals = new Map();
+    for (const row of data.monthly_by_category) {
+      monthsSet.add(row.period);
+      const m = catTotals.get(row.category) || new Map();
+      m.set(row.period, row.total);
+      catTotals.set(row.category, m);
+    }
+    const months = [...monthsSet].sort();
+    const datasets = [...catTotals.entries()]
+      .sort((a, b) => {
+        const sa = [...a[1].values()].reduce((s, v) => s + v, 0);
+        const sb = [...b[1].values()].reduce((s, v) => s + v, 0);
+        return sb - sa;
+      })
+      .map(([cat, m]) => ({
+        label: cat,
+        data: months.map(month => m.get(month) || 0),
+        backgroundColor: d.colourFor(cat),
+      }));
+
+    new Chart(document.getElementById("expenses-stack-chart"), {
+      type: "bar",
+      data: { labels: months, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: { x: { stacked: true }, y: { stacked: true } },
+        plugins: { legend: { position: "bottom" } },
+      },
+    });
+
+    // Table
+    const tbody = document.querySelector("#expenses-table tbody");
+    if (!sortedCats.length) {
+      tbody.innerHTML = '<tr><td colspan="3" class="empty">No expenses recorded yet.</td></tr>';
+    } else {
+      tbody.innerHTML = sortedCats.map(c => `
+        <tr>
+          <td>${c.category}</td>
+          <td><span class="tag ${c.kind}">${c.kind}</span></td>
+          <td class="num negative">${d.formatCurrency(c.total, true)}</td>
+        </tr>`).join("");
+    }
+  });
+</script>
+{% endblock %}

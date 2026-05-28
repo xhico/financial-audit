@@ -1,0 +1,57 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Net worth{% endblock %}
+
+{% block content %}
+<h1>Net worth</h1>
+
+<section class="panel">
+  <h2>Components over time</h2>
+  <div class="chart-wrap tall"><canvas id="net-worth-chart"></canvas></div>
+</section>
+
+<section class="panel">
+  <h2>Snapshots</h2>
+  <table class="data" id="net-worth-table">
+    <thead><tr><th>As of</th><th class="num">Current</th><th class="num">Savings</th><th class="num">Investments</th><th class="num">Mortgage</th><th class="num">Net worth</th></tr></thead>
+    <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+  </table>
+</section>
+
+<script>
+  window.addEventListener("load", async () => {
+    const d = window.dashboard;
+    const data = await d.fetchJson("/api/dashboard/net-worth/");
+
+    new Chart(document.getElementById("net-worth-chart"), {
+      type: "line",
+      data: {
+        labels: data.map(r => r.as_of),
+        datasets: [
+          { label: "Net worth", data: data.map(r => r.net_worth), borderColor: "#2563eb", backgroundColor: "#2563eb22", fill: true, tension: 0.2 },
+          { label: "Current", data: data.map(r => r.current), borderColor: "#0ea5e9", tension: 0.2 },
+          { label: "Savings", data: data.map(r => r.savings), borderColor: "#16a34a", tension: 0.2 },
+          { label: "Investments", data: data.map(r => r.investments), borderColor: "#7c3aed", tension: 0.2 },
+          { label: "Mortgage", data: data.map(r => -r.mortgage), borderColor: "#dc2626", tension: 0.2 },
+        ],
+      },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
+    });
+
+    const tbody = document.querySelector("#net-worth-table tbody");
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty">No snapshots yet — import a CGD statement.</td></tr>';
+    } else {
+      tbody.innerHTML = data.map(r => `
+        <tr>
+          <td>${r.as_of}</td>
+          <td class="num">${d.formatCurrency(r.current, true)}</td>
+          <td class="num">${d.formatCurrency(r.savings, true)}</td>
+          <td class="num">${d.formatCurrency(r.investments, true)}</td>
+          <td class="num negative">${d.formatCurrency(-r.mortgage, true)}</td>
+          <td class="num ${r.net_worth >= 0 ? "positive" : "negative"}">${d.formatCurrency(r.net_worth, true)}</td>
+        </tr>`).join("");
+    }
+  });
+</script>
+{% endblock %}

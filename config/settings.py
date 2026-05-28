@@ -106,6 +106,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+LOGIN_URL = "/admin/login/"
+LOGIN_REDIRECT_URL = "/"
+
 LANGUAGE_CODE = "en-gb"
 TIME_ZONE = env("DJANGO_TIME_ZONE", default="UTC")
 USE_I18N = True

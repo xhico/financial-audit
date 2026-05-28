@@ -1,0 +1,35 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-gb">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dashboard{% endblock %} — FinancialAudit</title>
+  <link rel="stylesheet" href="{% static 'finance/dashboard.css' %}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+  <script src="{% static 'finance/dashboard.js' %}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="{% url 'pages:overview' %}">FinancialAudit</a>
+    <nav class="mainnav">
+      <a href="{% url 'pages:overview' %}">Overview</a>
+      <a href="{% url 'pages:income' %}">Income</a>
+      <a href="{% url 'pages:expenses' %}">Expenses</a>
+      <a href="{% url 'pages:cashflow' %}">Cashflow</a>
+      <a href="{% url 'pages:net-worth' %}">Net worth</a>
+      <a href="{% url 'pages:accounts' %}">Accounts</a>
+      <a href="{% url 'pages:transactions' %}">Transactions</a>
+    </nav>
+    <div class="userbar">
+      <span class="user">{{ request.user.username }}</span>
+      <a href="/admin/">Admin</a>
+      <a href="/admin/logout/">Sign out</a>
+    </div>
+  </header>
+  <main class="content">
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>
