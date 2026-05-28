@@ -3,17 +3,20 @@
 {% block title %}Transactions{% endblock %}
 
 {% block content %}
-<h1>Transactions</h1>
+<div class="flex items-end justify-between flex-wrap gap-3">
+  <h1 class="text-2xl font-bold tracking-tight text-slate-900">Transactions</h1>
+  <span class="text-sm text-slate-500" id="pager-status"></span>
+</div>
 
-<form class="filters" id="filters" onsubmit="event.preventDefault(); window.loadTxns(1);">
-  <label>Scope
+<form class="bg-white border border-slate-200 rounded-xl p-4 flex flex-wrap gap-4 items-end" id="filters" onsubmit="event.preventDefault(); window.loadTxns(1);">
+  <label class="filter-field">Scope
     <select name="scope">
       <option value="">All</option>
       <option value="personal">Personal</option>
       <option value="business">Business</option>
     </select>
   </label>
-  <label>Kind
+  <label class="filter-field">Kind
     <select name="kind">
       <option value="">All</option>
       <option value="income">Income</option>
@@ -24,34 +27,31 @@
       <option value="other">Other</option>
     </select>
   </label>
-  <label>Search
-    <input name="q" type="search" placeholder="description">
+  <label class="filter-field flex-1 min-w-[180px]">Search
+    <input name="q" type="search" placeholder="description, vendor, reference…">
   </label>
-  <label>From <input name="date_from" type="date"></label>
-  <label>To <input name="date_to" type="date"></label>
-  <label style="flex-direction:row; align-items:center; gap:.4rem">
-    <input name="uncategorised" type="checkbox" value="1">
-    <span>Uncategorised only</span>
+  <label class="filter-field">From <input name="date_from" type="date"></label>
+  <label class="filter-field">To <input name="date_to" type="date"></label>
+  <label class="text-xs font-medium text-slate-600 flex items-center gap-2 pb-1.5">
+    <input name="uncategorised" type="checkbox" value="1" class="w-4 h-4 accent-indigo-600">
+    Uncategorised only
   </label>
-  <button type="submit">Apply</button>
+  <button type="submit" class="btn-primary">Apply</button>
 </form>
 
-<section class="panel">
-  <table class="data" id="txn-table">
+<section class="panel p-0 overflow-hidden">
+  <table class="table-data">
     <thead>
       <tr>
         <th>Date</th><th>Account</th><th>Description</th>
         <th>Category</th><th class="num">Amount</th><th class="num">Balance</th>
       </tr>
     </thead>
-    <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    <tbody id="txn-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
   </table>
-  <div id="pager" style="display:flex; justify-content:space-between; align-items:center; margin-top:.75rem; color:var(--muted)">
-    <span id="pager-status"></span>
-    <span>
-      <button type="button" id="prev-page" onclick="window.loadTxns(window.currentPage - 1)">‹ Prev</button>
-      <button type="button" id="next-page" onclick="window.loadTxns(window.currentPage + 1)">Next ›</button>
-    </span>
+  <div class="flex items-center justify-end gap-2 p-3 border-t border-slate-200 bg-slate-50">
+    <button type="button" class="btn-ghost" id="prev-page" onclick="window.loadTxns(window.currentPage - 1)">‹ Prev</button>
+    <button type="button" class="btn-ghost" id="next-page" onclick="window.loadTxns(window.currentPage + 1)">Next ›</button>
   </div>
 </section>
 
@@ -69,7 +69,7 @@
       else if (el.value) params.set(el.name, el.value);
     }
     const data = await d.fetchJson("/api/transactions/?" + params.toString());
-    const tbody = document.querySelector("#txn-table tbody");
+    const tbody = document.getElementById("txn-tbody");
     if (!data.results.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty">No transactions match.</td></tr>';
     } else {
@@ -78,22 +78,25 @@
         const bal = t.balance !== null ? d.formatCurrency(parseFloat(t.balance), true) : "—";
         const catTag = t.category
           ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
-          : '<span class="tag other">uncategorised</span>';
+          : '<span class="tag">uncategorised</span>';
         return `
           <tr>
-            <td>${t.date}</td>
-            <td>${t.account.name}<br><span style="color:var(--muted);font-size:.8em">${t.account.scope}</span></td>
-            <td>${t.description}</td>
+            <td class="whitespace-nowrap text-slate-600">${t.date}</td>
+            <td>
+              <div class="font-medium">${t.account.name}</div>
+              <div class="text-xs text-slate-500">${t.account.scope}</div>
+            </td>
+            <td class="max-w-md truncate" title="${t.description.replace(/"/g, "&quot;")}">${t.description}</td>
             <td>${catTag}</td>
-            <td class="num ${amt >= 0 ? "positive" : "negative"}">${d.formatCurrency(amt, true)}</td>
-            <td class="num">${bal}</td>
+            <td class="num font-medium ${amt >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(amt, true)}</td>
+            <td class="num text-slate-500">${bal}</td>
           </tr>`;
       }).join("");
     }
     const total = data.count;
-    const pageSize = data.results.length;
+    const shown = data.results.length;
     document.getElementById("pager-status").textContent =
-      total === 0 ? "" : `Page ${window.currentPage} — ${pageSize} of ${total} transactions`;
+      total === 0 ? "" : `Page ${window.currentPage} — showing ${shown} of ${total}`;
     document.getElementById("prev-page").disabled = !data.previous;
     document.getElementById("next-page").disabled = !data.next;
   };

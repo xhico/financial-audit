@@ -3,7 +3,7 @@
 {% block title %}Net worth{% endblock %}
 
 {% block content %}
-<h1>Net worth</h1>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900">Net worth</h1>
 
 <section class="panel">
   <h2>Components over time</h2>
@@ -12,9 +12,9 @@
 
 <section class="panel">
   <h2>Snapshots</h2>
-  <table class="data" id="net-worth-table">
+  <table class="table-data">
     <thead><tr><th>As of</th><th class="num">Current</th><th class="num">Savings</th><th class="num">Investments</th><th class="num">Mortgage</th><th class="num">Net worth</th></tr></thead>
-    <tbody><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    <tbody id="networth-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
   </table>
 </section>
 
@@ -28,17 +28,17 @@
       data: {
         labels: data.map(r => r.as_of),
         datasets: [
-          { label: "Net worth", data: data.map(r => r.net_worth), borderColor: "#6366f1", backgroundColor: "#6366f122", fill: true, tension: 0.2 },
-          { label: "Current", data: data.map(r => r.current), borderColor: "#0ea5e9", tension: 0.2 },
-          { label: "Savings", data: data.map(r => r.savings), borderColor: "#10b981", tension: 0.2 },
-          { label: "Investments", data: data.map(r => r.investments), borderColor: "#8b5cf6", tension: 0.2 },
-          { label: "Mortgage", data: data.map(r => -r.mortgage), borderColor: "#ef4444", tension: 0.2 },
+          { label: "Net worth",   data: data.map(r => r.net_worth),   borderColor: "#6366f1", backgroundColor: "rgba(99,102,241,0.12)", fill: true, tension: 0.25 },
+          { label: "Current",     data: data.map(r => r.current),     borderColor: "#0ea5e9", tension: 0.25 },
+          { label: "Savings",     data: data.map(r => r.savings),     borderColor: "#10b981", tension: 0.25 },
+          { label: "Investments", data: data.map(r => r.investments), borderColor: "#8b5cf6", tension: 0.25 },
+          { label: "Mortgage",    data: data.map(r => -r.mortgage),   borderColor: "#f43f5e", tension: 0.25 },
         ],
       },
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
     });
 
-    const tbody = document.querySelector("#net-worth-table tbody");
+    const tbody = document.getElementById("networth-tbody");
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty">No snapshots yet — import a CGD statement.</td></tr>';
     } else {
@@ -46,10 +46,10 @@
         <tr>
           <td>${r.as_of}</td>
           <td class="num">${d.formatCurrency(r.current, true)}</td>
-          <td class="num">${d.formatCurrency(r.savings, true)}</td>
-          <td class="num">${d.formatCurrency(r.investments, true)}</td>
-          <td class="num negative">${d.formatCurrency(-r.mortgage, true)}</td>
-          <td class="num ${r.net_worth >= 0 ? "positive" : "negative"}">${d.formatCurrency(r.net_worth, true)}</td>
+          <td class="num text-emerald-600">${d.formatCurrency(r.savings, true)}</td>
+          <td class="num text-violet-600">${d.formatCurrency(r.investments, true)}</td>
+          <td class="num text-rose-600">${d.formatCurrency(-r.mortgage, true)}</td>
+          <td class="num font-semibold ${r.net_worth >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(r.net_worth, true)}</td>
         </tr>`).join("");
     }
   });

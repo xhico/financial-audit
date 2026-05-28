@@ -3,17 +3,17 @@
 {% block title %}Accounts{% endblock %}
 
 {% block content %}
-<h1>Accounts</h1>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900">Accounts</h1>
 
 <section class="panel">
-  <table class="data" id="accounts-table">
+  <table class="table-data">
     <thead>
       <tr>
         <th>Account</th><th>Bank</th><th>Scope</th><th>Kind</th>
         <th>IBAN</th><th class="num">Balance</th><th>Last movement</th>
       </tr>
     </thead>
-    <tbody><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    <tbody id="accounts-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
   </table>
 </section>
 
@@ -21,20 +21,20 @@
   window.addEventListener("load", async () => {
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/accounts/");
-    const tbody = document.querySelector("#accounts-table tbody");
+    const tbody = document.getElementById("accounts-tbody");
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="empty">No accounts yet.</td></tr>';
       return;
     }
     tbody.innerHTML = data.map(a => `
       <tr>
-        <td>${a.name}</td>
-        <td>${a.bank}</td>
-        <td>${a.scope}</td>
-        <td>${a.kind}</td>
-        <td class="numeric" style="font-size:.85em">${a.iban}</td>
+        <td class="font-medium">${a.name}</td>
+        <td class="text-slate-600">${a.bank}</td>
+        <td><span class="tag ${a.scope}">${a.scope}</span></td>
+        <td class="text-slate-600">${a.kind}</td>
+        <td class="text-xs tabular-nums text-slate-500">${a.iban}</td>
         <td class="num">${a.balance === null ? "—" : d.formatCurrency(a.balance, true)}</td>
-        <td>${a.last_movement || "—"}</td>
+        <td class="text-slate-500">${a.last_movement || "—"}</td>
       </tr>`).join("");
   });
 </script>

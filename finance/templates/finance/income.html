@@ -3,7 +3,7 @@
 {% block title %}Income{% endblock %}
 
 {% block content %}
-<h1>Income</h1>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900">Income</h1>
 
 <section class="panel">
   <h2>Monthly income</h2>
@@ -17,10 +17,12 @@
 
 <section class="panel">
   <h2>Monthly totals</h2>
-  <table class="data" id="income-table" style="max-width:480px">
-    <thead><tr><th>Month</th><th class="num">Income</th></tr></thead>
-    <tbody><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
-  </table>
+  <div class="max-w-md">
+    <table class="table-data">
+      <thead><tr><th>Month</th><th class="num">Income</th></tr></thead>
+      <tbody id="income-tbody"><tr><td colspan="2" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
 </section>
 
 <script>
@@ -46,12 +48,12 @@
       options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } },
     });
 
-    const tbody = document.querySelector("#income-table tbody");
+    const tbody = document.getElementById("income-tbody");
     if (!data.monthly.length) {
       tbody.innerHTML = '<tr><td colspan="2" class="empty">No income recorded yet.</td></tr>';
     } else {
       tbody.innerHTML = data.monthly.map(r => `
-        <tr><td>${r.period}</td><td class="num positive">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
+        <tr><td>${r.period}</td><td class="num text-emerald-600 font-medium">${d.formatCurrency(r.income, true)}</td></tr>`).join("");
     }
   });
 </script>

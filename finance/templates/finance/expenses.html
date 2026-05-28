@@ -3,7 +3,7 @@
 {% block title %}Expenses{% endblock %}
 
 {% block content %}
-<h1>Expenses</h1>
+<h1 class="text-2xl font-bold tracking-tight text-slate-900">Expenses</h1>
 
 <section class="panel">
   <h2>By category (all time)</h2>
@@ -17,10 +17,12 @@
 
 <section class="panel">
   <h2>Category totals</h2>
-  <table class="data" id="expenses-table" style="max-width:560px">
-    <thead><tr><th>Category</th><th>Kind</th><th class="num">Total spent</th></tr></thead>
-    <tbody><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
-  </table>
+  <div class="max-w-2xl">
+    <table class="table-data">
+      <thead><tr><th>Category</th><th>Kind</th><th class="num">Total spent</th></tr></thead>
+      <tbody id="expenses-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
 </section>
 
 <script>
@@ -28,21 +30,16 @@
     const d = window.dashboard;
     const data = await d.fetchJson("/api/dashboard/expenses/");
 
-    // Pie chart: per-category total
     const sortedCats = [...data.by_category].sort((a, b) => b.total - a.total);
     new Chart(document.getElementById("expenses-pie-chart"), {
       type: "doughnut",
       data: {
         labels: sortedCats.map(c => c.category),
-        datasets: [{
-          data: sortedCats.map(c => c.total),
-          backgroundColor: sortedCats.map(c => d.colourFor(c.category)),
-        }],
+        datasets: [{ data: sortedCats.map(c => c.total), backgroundColor: sortedCats.map(c => d.colourFor(c.category)), borderWidth: 0 }],
       },
-      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } } },
+      options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: "right" } }, cutout: "55%" },
     });
 
-    // Stacked bar: months × categories
     const monthsSet = new Set();
     const catTotals = new Map();
     for (const row of data.monthly_by_category) {
@@ -53,11 +50,7 @@
     }
     const months = [...monthsSet].sort();
     const datasets = [...catTotals.entries()]
-      .sort((a, b) => {
-        const sa = [...a[1].values()].reduce((s, v) => s + v, 0);
-        const sb = [...b[1].values()].reduce((s, v) => s + v, 0);
-        return sb - sa;
-      })
+      .sort((a, b) => [...b[1].values()].reduce((s, v) => s + v, 0) - [...a[1].values()].reduce((s, v) => s + v, 0))
       .map(([cat, m]) => ({
         label: cat,
         data: months.map(month => m.get(month) || 0),
@@ -68,23 +61,21 @@
       type: "bar",
       data: { labels: months, datasets },
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
+        responsive: true, maintainAspectRatio: false,
         scales: { x: { stacked: true }, y: { stacked: true } },
         plugins: { legend: { position: "bottom" } },
       },
     });
 
-    // Table
-    const tbody = document.querySelector("#expenses-table tbody");
+    const tbody = document.getElementById("expenses-tbody");
     if (!sortedCats.length) {
       tbody.innerHTML = '<tr><td colspan="3" class="empty">No expenses recorded yet.</td></tr>';
     } else {
       tbody.innerHTML = sortedCats.map(c => `
         <tr>
-          <td>${c.category}</td>
+          <td class="font-medium">${c.category}</td>
           <td><span class="tag ${c.kind}">${c.kind}</span></td>
-          <td class="num negative">${d.formatCurrency(c.total, true)}</td>
+          <td class="num text-rose-600 font-medium">${d.formatCurrency(c.total, true)}</td>
         </tr>`).join("");
     }
   });
