@@ -17,10 +17,21 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
 
-# Description strings (substring match, case-insensitive) that mark a real
-# cash flow between the user's bank and the Degiro cash account
+# Description substrings (matched case-insensitively) used to classify each
+# CSV row into one of four kinds we care about. Everything else (sweeps,
+# fees, ETF orders, FX) is internal to the broker and gets dropped.
 DEPOSIT_PATTERNS = ("flatex deposit",)
 WITHDRAWAL_PATTERNS = ("processed flatex withdrawal",)
+DIVIDEND_PATTERNS = ("dividendo",)
+INTEREST_PATTERNS = ("flatex interest income",)
+
+# Movement kinds that change the user's wallet vs that earn income inside
+# the broker. The sign convention for amount differs between the two:
+# wallet-side rows are flipped (deposit = negative wallet flow) while
+# broker-side income keeps the broker's positive sign so it reads as
+# income on the dashboards.
+WALLET_KINDS = ("deposit", "withdrawal")
+INCOME_KINDS = ("dividend", "interest")
 
 
 def _parse_date(token):
@@ -60,14 +71,20 @@ class ParsedDegiroMovement:
     A single cash-account movement worth recording in the ledger.
 
     - Captures the value date, description, signed amount and balance
-    - Sign convention matches the user's wallet: a deposit (bank -> Degiro)
-      is negative, a withdrawal (Degiro -> bank) is positive
+    - kind disambiguates wallet flows (deposit / withdrawal) from
+      broker-side income (dividend / interest); the importer maps that
+      onto a category
+    - Sign convention is tied to kind: wallet flows flip Mudança so a
+      deposit (bank -> Degiro) shows as a negative wallet amount; broker
+      income keeps the broker's positive sign so dashboards read it as
+      income arriving
     """
 
     date: object
     description: str
     amount: Decimal
     balance: Decimal
+    kind: str
 
 
 @dataclass
@@ -109,20 +126,31 @@ def parse(text):
 
         description = (row[5] or "").strip()
         description_lower = description.lower()
-        is_deposit = any(pattern in description_lower for pattern in DEPOSIT_PATTERNS)
-        is_withdrawal = any(pattern in description_lower for pattern in WITHDRAWAL_PATTERNS)
-        if not (is_deposit or is_withdrawal):
+        kind = None
+        if any(pattern in description_lower for pattern in DEPOSIT_PATTERNS):
+            kind = "deposit"
+        elif any(pattern in description_lower for pattern in WITHDRAWAL_PATTERNS):
+            kind = "withdrawal"
+        elif any(pattern in description_lower for pattern in DIVIDEND_PATTERNS):
+            kind = "dividend"
+        elif any(pattern in description_lower for pattern in INTEREST_PATTERNS):
+            kind = "interest"
+        if kind is None:
             continue
 
         change_raw = row[8]
         if not change_raw.strip():
             continue
 
-        # The CSV's "Mudança" tracks the flatex balance, so a deposit increases
-        # it (positive) and a withdrawal decreases it (negative). The wallet sees
-        # the opposite sign, so we flip here once.
+        # The CSV's "Mudança" tracks the flatex balance. For wallet flows we
+        # flip the sign so a deposit reads as money leaving the wallet; for
+        # broker-side income we keep the broker's positive sign so dashboards
+        # show the dividend / interest as income arriving.
         change = _parse_amount(change_raw)
-        amount = -change
+        if kind in WALLET_KINDS:
+            amount = -change
+        else:
+            amount = change
 
         balance = _parse_amount(row[10]) if row[10].strip() else None
         date = _parse_date(row[0])
@@ -133,6 +161,7 @@ def parse(text):
                 description=description,
                 amount=amount,
                 balance=balance,
+                kind=kind,
             )
         )
 

@@ -1,5 +1,7 @@
 Data,Hora,Data Valor,Produto,ISIN,Descrição,T.,Mudança,,Saldo,,ID da Ordem
 05-02-2026,10:00,05-02-2026,,,flatex Deposit,,EUR,"100,00",EUR,"500,00",
+03-02-2026,09:00,03-02-2026,EXAMPLE ETF,IE00EXAMPLE,Dividendo,,EUR,"7,50",EUR,"407,50",
+01-02-2026,06:00,01-02-2026,,,Flatex Interest Income,,EUR,"0,15",EUR,"400,15",
 15-01-2026,09:15,15-01-2026,,,Processed Flatex Withdrawal,,EUR,"-50,00",EUR,"400,00",
 10-12-2025,12:30,10-12-2025,EXAMPLE ETF,IE00EXAMPLE,Comissões de transação DEGIRO e/ou taxas de terceiros,,EUR,"-1,00",EUR,"450,00",order-abc
 10-12-2025,12:30,10-12-2025,EXAMPLE ETF,IE00EXAMPLE,"Compra 1 EXAMPLE ETF @100 EUR (IE00EXAMPLE)",,EUR,"-100,00",EUR,"451,00",order-abc

@@ -219,6 +219,19 @@ def import_degiro_csv(text, source_file=""):
         },
     )
     investment_cat, _ = Category.objects.get_or_create(name="Investment", defaults={"kind": Category.Kind.INVESTMENT})
+    # Dividends and Flatex interest land in a dedicated income category so the
+    # cashflow and income dashboards reflect what the broker has actually paid
+    # the user across the period.
+    investment_income_cat, _ = Category.objects.get_or_create(
+        name="Investment income", defaults={"kind": Category.Kind.INCOME}
+    )
+    # Map the parser's movement kind onto the right category
+    category_by_kind = {
+        "deposit": investment_cat,
+        "withdrawal": investment_cat,
+        "dividend": investment_income_cat,
+        "interest": investment_income_cat,
+    }
 
     created = 0
     skipped = 0
@@ -234,7 +247,7 @@ def import_degiro_csv(text, source_file=""):
                 "description": movement.description,
                 "amount": movement.amount,
                 "balance": movement.balance,
-                "category": investment_cat,
+                "category": category_by_kind[movement.kind],
             },
         )
         if was_created:
