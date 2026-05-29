@@ -21,7 +21,11 @@ from decimal import Decimal
 # CSV row into one of four kinds we care about. Everything else (sweeps,
 # fees, ETF orders, FX) is internal to the broker and gets dropped.
 DEPOSIT_PATTERNS = ("flatex deposit",)
-WITHDRAWAL_PATTERNS = ("processed flatex withdrawal",)
+# Degiro emits two variants for cash going back to the user's bank: the
+# settled "flatex Withdrawal" row, and the bookkeeping "Processed Flatex
+# Withdrawal" pair. The substring catches both since "flatex withdrawal"
+# is also in "Processed Flatex Withdrawal".
+WITHDRAWAL_PATTERNS = ("flatex withdrawal",)
 DIVIDEND_PATTERNS = ("dividendo",)
 INTEREST_PATTERNS = ("flatex interest income",)
 
