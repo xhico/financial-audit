@@ -44,7 +44,7 @@ class CategoryRuleAdmin(admin.ModelAdmin):
     - Ordered so the highest-priority rules show first
     """
 
-    list_display = ("match_text", "sign", "scope", "category", "priority")
+    list_display = ("match_text", "sign", "scope", "effective_from", "category", "priority")
     list_filter = ("sign", "scope", "category")
     search_fields = ("match_text",)
 

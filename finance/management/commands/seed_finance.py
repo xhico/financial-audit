@@ -101,6 +101,7 @@ class Command(BaseCommand):
                 match_text=entry["match_text"],
                 sign=entry.get("sign", CategoryRule.Sign.ANY),
                 scope=entry.get("scope", ""),
+                effective_from=entry.get("effective_from") or None,
                 defaults={
                     "category": category,
                     "priority": entry.get("priority", 100),

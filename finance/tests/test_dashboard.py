@@ -185,6 +185,57 @@ def test_dashboard_requires_authentication():
 
 
 @pytest.mark.django_db
+def test_category_rule_effective_from_only_matches_later_dates():
+    """
+    A rule with effective_from set only classifies transactions on or after it.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    investment = Category.objects.create(name="Investment", kind=Category.Kind.INVESTMENT)
+    transfer = Category.objects.create(name="Internal transfer", kind=Category.Kind.TRANSFER)
+    # Cut-off rule for 2026 onwards, plus a catch-all for everything before
+    CategoryRule.objects.create(
+        match_text="BROKER",
+        sign=CategoryRule.Sign.ANY,
+        category=investment,
+        effective_from=date(2026, 1, 1),
+        priority=15,
+    )
+    CategoryRule.objects.create(
+        match_text="BROKER",
+        sign=CategoryRule.Sign.ANY,
+        category=transfer,
+        priority=20,
+    )
+
+    account = Account.objects.create(name="House", bank="Bank", iban="PT50000000000000000000020", scope="personal")
+    pre = Transaction.objects.create(
+        account=account,
+        date=date(2025, 6, 1),
+        description="BROKER deposit",
+        amount=Decimal("-500.00"),
+    )
+    post = Transaction.objects.create(
+        account=account,
+        date=date(2026, 2, 1),
+        description="BROKER deposit",
+        amount=Decimal("-500.00"),
+    )
+
+    classify_transactions()
+    pre.refresh_from_db()
+    post.refresh_from_db()
+
+    assert pre.category.name == "Internal transfer"
+    assert post.category.name == "Investment"
+
+
+@pytest.mark.django_db
 def test_seed_finance_updates_existing_rules_in_place(tmp_path):
     """
     Re-seeding with a different category for the same match maps the existing rule

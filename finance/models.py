@@ -129,6 +129,9 @@ class CategoryRule(models.Model):
     sign = models.CharField(max_length=6, choices=Sign.choices, default=Sign.ANY)
     # Blank scope matches any account scope
     scope = models.CharField(max_length=10, choices=Account.Scope.choices, blank=True)
+    # Only match transactions on or after this date when set; lets the same
+    # description map to different categories before and after a cut-off
+    effective_from = models.DateField(null=True, blank=True)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name="rules")
     priority = models.IntegerField(default=100)
 
@@ -166,6 +169,8 @@ class CategoryRule(models.Model):
         if self.sign == self.Sign.DEBIT and txn.amount >= 0:
             return False
         if self.scope and txn.account.scope != self.scope:
+            return False
+        if self.effective_from and txn.date < self.effective_from:
             return False
         return True
 
