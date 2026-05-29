@@ -655,6 +655,95 @@ def test_upload_endpoint_rejects_empty_request(api_client):
 
 
 @pytest.mark.django_db
+def test_reset_endpoint_wipes_data_and_keeps_configuration(api_client, seeded):
+    """
+    POST /api/reset/ with the confirm token deletes every imported record
+    but keeps categories, rules and ignore patterns intact.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data; primes accounts, transactions and rules
+
+    Returns:
+        None
+    """
+
+    PortfolioSnapshot.objects.create(
+        account=Account.objects.create(
+            name="Broker",
+            bank="Broker",
+            iban="BROKERIBAN",
+            scope="personal",
+            role=Account.Role.PERSONAL,
+            kind=Account.Kind.BROKERAGE,
+        ),
+        as_of=date(2026, 4, 30),
+        market_value=Decimal("50.00"),
+    )
+    accounts_before = Account.objects.count()
+    transactions_before = Transaction.objects.count()
+    rules_before = CategoryRule.objects.count()
+
+    response = api_client.post("/api/reset/", data={"confirm": "RESET"}, format="json")
+
+    assert response.status_code == 200
+    deleted = response.data["deleted"]
+    assert deleted["accounts"] == accounts_before
+    assert deleted["transactions"] == transactions_before
+    assert deleted["portfolio_snapshots"] >= 1
+    # Configuration kept
+    assert response.data["kept"]["category_rules"] == rules_before
+    # The database actually got wiped
+    assert Account.objects.count() == 0
+    assert Transaction.objects.count() == 0
+    assert PortfolioSnapshot.objects.count() == 0
+    assert BalanceSnapshot.objects.count() == 0
+    assert StatementImport.objects.count() == 0
+    # Rules and categories are still there
+    assert CategoryRule.objects.count() == rules_before
+    assert Category.objects.count() > 0
+
+
+@pytest.mark.django_db
+def test_reset_endpoint_requires_confirmation(api_client, seeded):
+    """
+    A reset call without the magic token returns 400 and leaves data alone.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data
+
+    Returns:
+        None
+    """
+
+    response = api_client.post("/api/reset/", data={"confirm": "no"}, format="json")
+    assert response.status_code == 400
+    # Nothing was deleted
+    assert Account.objects.count() > 0
+    assert Transaction.objects.count() > 0
+
+    response = api_client.post("/api/reset/", data={}, format="json")
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_reset_endpoint_requires_authentication():
+    """
+    The reset endpoint rejects anonymous requests.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    response = APIClient().post("/api/reset/", data={"confirm": "RESET"}, format="json")
+    assert response.status_code in (401, 403)
+
+
+@pytest.mark.django_db
 def test_transactions_list_requires_authentication():
     """
     The transactions list rejects anonymous requests.

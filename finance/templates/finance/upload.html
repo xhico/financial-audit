@@ -37,6 +37,38 @@
     <div id="results" class="grid gap-2"></div>
   </div>
 
+  <div class="tile col-span-12 border border-rose-200 dark:border-rose-900/60 bg-rose-50/60 dark:bg-rose-900/10">
+    <div class="flex items-start justify-between flex-wrap gap-3">
+      <div>
+        <div class="tile-label text-rose-700 dark:text-rose-300">Danger zone</div>
+        <div class="text-sm text-zinc-700 dark:text-zinc-200 font-medium mt-1">Reset all imported data</div>
+        <div class="text-xs text-zinc-500 mt-1">Deletes accounts, transactions, statements and portfolio snapshots. Categories, rules and ignore patterns are kept so the next upload classifies cleanly.</div>
+      </div>
+      <button type="button" id="reset-btn" class="px-3 py-2 text-sm font-medium rounded-md bg-rose-600 text-white hover:bg-rose-500">Reset data…</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Reset confirmation modal -->
+<div id="reset-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-900/60">
+  <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-5">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-lg font-semibold text-rose-700 dark:text-rose-300">Reset all imported data</h2>
+      <button type="button" id="reset-close" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">✕</button>
+    </div>
+    <p class="text-sm text-zinc-600 dark:text-zinc-300 mb-3">
+      This deletes every account, transaction, statement and portfolio snapshot. Type <span class="font-mono font-semibold">RESET</span> to confirm.
+    </p>
+    <form id="reset-form" class="grid gap-3">
+      <input type="text" name="confirm" autocomplete="off" placeholder="RESET" class="px-3 py-2 rounded-md ring-1 ring-zinc-200 dark:ring-zinc-800 bg-white dark:bg-zinc-900 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-rose-500">
+      <div id="reset-error" class="text-sm text-rose-600 hidden"></div>
+      <div class="flex items-center justify-end gap-2 mt-1">
+        <button type="button" id="reset-cancel" class="px-3 py-1.5 text-sm rounded-md text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">Cancel</button>
+        <button type="submit" id="reset-submit" class="px-3 py-1.5 text-sm font-medium rounded-md bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Delete everything</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
@@ -117,6 +149,85 @@
         ${accounts}
       </div>`;
   }
+
+  // --- Reset flow ----------------------------------------------------------
+
+  const resetBtn     = document.getElementById("reset-btn");
+  const resetModal   = document.getElementById("reset-modal");
+  const resetClose   = document.getElementById("reset-close");
+  const resetCancel  = document.getElementById("reset-cancel");
+  const resetForm    = document.getElementById("reset-form");
+  const resetInput   = resetForm.elements.confirm;
+  const resetSubmit  = document.getElementById("reset-submit");
+  const resetError   = document.getElementById("reset-error");
+
+  function csrfToken() {
+    return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+  }
+
+  function openReset() {
+    resetInput.value = "";
+    resetSubmit.disabled = true;
+    resetError.classList.add("hidden");
+    resetModal.classList.remove("hidden");
+    resetModal.classList.add("flex");
+    setTimeout(() => resetInput.focus(), 50);
+  }
+  function closeReset() {
+    resetModal.classList.add("hidden");
+    resetModal.classList.remove("flex");
+  }
+  resetBtn.addEventListener("click", openReset);
+  resetClose.addEventListener("click", closeReset);
+  resetCancel.addEventListener("click", closeReset);
+  resetModal.addEventListener("click", e => { if (e.target.id === "reset-modal") closeReset(); });
+  // Submit button enabled only once the input matches the magic word
+  resetInput.addEventListener("input", () => {
+    resetSubmit.disabled = resetInput.value.trim() !== "RESET";
+  });
+
+  resetForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    resetError.classList.add("hidden");
+    resetSubmit.disabled = true;
+    resetSubmit.textContent = "Deleting…";
+    try {
+      const resp = await fetch("/api/reset/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+        body: JSON.stringify({ confirm: "RESET" }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        resetError.textContent = data.error || `HTTP ${resp.status}`;
+        resetError.classList.remove("hidden");
+        resetSubmit.disabled = false;
+        resetSubmit.textContent = "Delete everything";
+        return;
+      }
+      closeReset();
+      // Show the wipe summary inline in the existing Results tile so the
+      // next upload's results land in the same column
+      resultsTile.hidden = false;
+      const d = data.deleted;
+      resultsEl.innerHTML = `
+        <div class="px-3 py-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm">
+          <div class="font-medium text-zinc-800 dark:text-zinc-100">Data wiped</div>
+          <div class="text-zinc-600 dark:text-zinc-300 mt-0.5">
+            ${d.transactions} transactions · ${d.statements} statements · ${d.accounts} accounts · ${d.balance_snapshots + d.portfolio_snapshots} snapshots removed
+          </div>
+          <div class="text-xs text-zinc-500 mt-1">Categories, rules and ignore patterns kept. Drop your files in to import again.</div>
+        </div>`;
+    } catch (err) {
+      resetError.textContent = err.message;
+      resetError.classList.remove("hidden");
+      resetSubmit.disabled = false;
+      resetSubmit.textContent = "Delete everything";
+    }
+  });
+
+  // --- Upload flow ---------------------------------------------------------
 
   document.getElementById("upload-form").addEventListener("submit", async e => {
     e.preventDefault();

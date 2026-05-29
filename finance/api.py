@@ -18,7 +18,16 @@ from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from finance.models import Account, BalanceSnapshot, Category, PortfolioSnapshot, StatementImport, Transaction
+from finance.models import (
+    Account,
+    BalanceSnapshot,
+    Category,
+    CategoryRule,
+    IgnoreRule,
+    PortfolioSnapshot,
+    StatementImport,
+    Transaction,
+)
 from finance.parsers import extract_text
 from finance.serializers import (
     AccountBriefSerializer,
@@ -819,3 +828,52 @@ class PortfolioSnapshotView(APIView):
         # Re-serialize the saved row so the response carries the nested
         # account brief and the created_at timestamp
         return Response(PortfolioSnapshotSerializer(snapshot).data, status=201 if created else 200)
+
+
+class ResetView(APIView):
+    """
+    Wipe every imported record so the user can re-upload from scratch.
+
+    - Deletes transactions, accounts, statements and both kinds of snapshot
+    - Keeps configuration (categories, rules, ignore patterns) so the next
+      upload auto-classifies as before
+    - Requires {"confirm": "RESET"} in the body to defend against an
+      accidental click; anything else returns a 400
+    """
+
+    def post(self, request):
+        """
+        Validate the confirmation token and delete the data tables.
+
+        Args:
+            request (Request): The incoming JSON request; must carry
+                {"confirm": "RESET"}
+
+        Returns:
+            Response: A dict with the deleted-row counts per model, plus a
+            kept block that documents what was preserved
+        """
+
+        if (request.data or {}).get("confirm") != "RESET":
+            return Response(
+                {"error": 'Send {"confirm": "RESET"} to wipe the data.'},
+                status=400,
+            )
+
+        # Delete order respects the foreign-key graph: transactions and
+        # portfolio snapshots point at accounts; balance snapshots point at
+        # statements; nothing else points at accounts once those are gone.
+        deleted = {
+            "transactions": Transaction.objects.all().delete()[0],
+            "portfolio_snapshots": PortfolioSnapshot.objects.all().delete()[0],
+            "balance_snapshots": BalanceSnapshot.objects.all().delete()[0],
+            "statements": StatementImport.objects.all().delete()[0],
+            "accounts": Account.objects.all().delete()[0],
+        }
+        # Configuration is preserved so the next upload classifies cleanly
+        kept = {
+            "categories": Category.objects.count(),
+            "category_rules": CategoryRule.objects.count(),
+            "ignore_rules": IgnoreRule.objects.count(),
+        }
+        return Response({"deleted": deleted, "kept": kept})
