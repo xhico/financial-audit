@@ -16,7 +16,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from finance.models import Account, BalanceSnapshot, Category, StatementImport, Transaction
+from finance.models import Account, BalanceSnapshot, Category, PortfolioSnapshot, StatementImport, Transaction
 from finance.serializers import TransactionSerializer
 
 
@@ -220,7 +220,35 @@ def _investments_series(scope=None):
     by_cat = base.values("category__name").annotate(total=Sum("amount")).order_by("total")
     by_category = [{"category": r["category__name"], "net_invested": -float(r["total"])} for r in by_cat]
 
-    return {"monthly": monthly, "cumulative": cumulative, "by_category": by_category}
+    # Valuation block: the latest manually-entered portfolio snapshot across
+    # the brokerage accounts in scope, plus a small history series for the
+    # frontend to chart value vs cost basis.
+    snapshots = PortfolioSnapshot.objects.filter(account__kind=Account.Kind.BROKERAGE)
+    if scope:
+        snapshots = snapshots.filter(account__scope=scope)
+
+    history_rows = snapshots.values("as_of").annotate(total=Sum("market_value")).order_by("as_of")
+    history = [{"as_of": r["as_of"].isoformat(), "market_value": float(r["total"])} for r in history_rows]
+    net_invested = running
+    if history:
+        latest = history[-1]
+        current_value = latest["market_value"]
+        valuation = {
+            "current_value": current_value,
+            "as_of": latest["as_of"],
+            "unrealised": current_value - net_invested,
+            "history": history,
+        }
+    else:
+        valuation = {"current_value": None, "as_of": None, "unrealised": None, "history": []}
+
+    return {
+        "monthly": monthly,
+        "cumulative": cumulative,
+        "by_category": by_category,
+        "net_invested": net_invested,
+        "valuation": valuation,
+    }
 
 
 class InvestmentsView(APIView):

@@ -4,7 +4,15 @@
 
 from django.contrib import admin
 
-from finance.models import Account, Category, CategoryRule, IgnoreRule, StatementImport, Transaction
+from finance.models import (
+    Account,
+    Category,
+    CategoryRule,
+    IgnoreRule,
+    PortfolioSnapshot,
+    StatementImport,
+    Transaction,
+)
 
 
 @admin.register(Account)
@@ -60,6 +68,20 @@ class IgnoreRuleAdmin(admin.ModelAdmin):
 
     list_display = ("match_text", "note")
     search_fields = ("match_text", "note")
+
+
+@admin.register(PortfolioSnapshot)
+class PortfolioSnapshotAdmin(admin.ModelAdmin):
+    """
+    Admin for manual portfolio-value snapshots.
+
+    - Lists the account, snapshot date and recorded market value
+    - Allows filtering by account
+    """
+
+    list_display = ("account", "as_of", "market_value", "note")
+    list_filter = ("account",)
+    date_hierarchy = "as_of"
 
 
 @admin.register(StatementImport)

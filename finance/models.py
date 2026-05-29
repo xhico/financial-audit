@@ -284,6 +284,44 @@ class BalanceSnapshot(models.Model):
         return f"Balances at {self.as_of}"
 
 
+class PortfolioSnapshot(models.Model):
+    """
+    Manually recorded market value of a brokerage account at a point in time.
+
+    - One row per (account, as_of) date
+    - Combined with the Investment-category transactions to derive an
+      unrealised gain on the Investments page
+    - Entered by the user once a month when refreshing the dashboard
+    """
+
+    account = models.ForeignKey(Account, on_delete=models.CASCADE, related_name="portfolio_snapshots")
+    as_of = models.DateField()
+    # The figure Degiro (or any other broker) prints as the account's total
+    # value, in EUR. Includes positions and any uninvested cash.
+    market_value = models.DecimalField(max_digits=12, decimal_places=2)
+    note = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-as_of"]
+        constraints = [
+            models.UniqueConstraint(fields=["account", "as_of"], name="unique_portfolio_snapshot"),
+        ]
+
+    def __str__(self):
+        """
+        Return a readable label for the snapshot.
+
+        Args:
+            None
+
+        Returns:
+            str: The account name and snapshot date
+        """
+
+        return f"{self.account.name} @ {self.as_of}: {self.market_value}"
+
+
 class Transaction(models.Model):
     """
     A single posted movement on an account.

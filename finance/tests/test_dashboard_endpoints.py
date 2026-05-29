@@ -7,9 +7,18 @@ from decimal import Decimal
 
 import pytest
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from rest_framework.test import APIClient
 
-from finance.models import Account, BalanceSnapshot, Category, CategoryRule, StatementImport, Transaction
+from finance.models import (
+    Account,
+    BalanceSnapshot,
+    Category,
+    CategoryRule,
+    PortfolioSnapshot,
+    StatementImport,
+    Transaction,
+)
 from finance.services import classify_transactions
 
 
@@ -301,6 +310,112 @@ def test_transactions_list_filters_and_paginates(api_client, seeded):
     response = api_client.get("/api/transactions/?q=payroll")
     assert response.status_code == 200
     assert response.data["count"] == 2
+
+
+@pytest.mark.django_db
+def test_investments_endpoint_includes_valuation_block(api_client):
+    """
+    The investments endpoint exposes the latest portfolio snapshot alongside
+    the cumulative cost basis, so the dashboard can show current value and
+    unrealised gain.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    broker = Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+    investment = Category.objects.create(name="Investment", kind=Category.Kind.INVESTMENT)
+    # Two deposits adding to a cost basis of 200
+    Transaction.objects.create(
+        account=broker,
+        date=date(2026, 1, 15),
+        description="flatex Deposit",
+        amount=Decimal("-120.00"),
+        category=investment,
+    )
+    Transaction.objects.create(
+        account=broker,
+        date=date(2026, 2, 15),
+        description="flatex Deposit",
+        amount=Decimal("-80.00"),
+        category=investment,
+    )
+    # Recorded snapshot above the cost basis -> positive unrealised gain
+    PortfolioSnapshot.objects.create(account=broker, as_of=date(2026, 2, 28), market_value=Decimal("230.00"))
+
+    response = api_client.get("/api/dashboard/investments/")
+
+    assert response.status_code == 200
+    all_block = response.data["all"]
+    assert all_block["net_invested"] == 200.0
+    valuation = all_block["valuation"]
+    assert valuation["current_value"] == 230.0
+    assert valuation["as_of"] == "2026-02-28"
+    assert valuation["unrealised"] == 30.0
+    assert valuation["history"] == [{"as_of": "2026-02-28", "market_value": 230.0}]
+
+
+@pytest.mark.django_db
+def test_investments_endpoint_returns_empty_valuation_without_snapshot(api_client):
+    """
+    With no portfolio snapshots recorded, the valuation block reports nulls
+    so the dashboard can fall back to a "no data" state.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.get("/api/dashboard/investments/")
+
+    assert response.status_code == 200
+    valuation = response.data["all"]["valuation"]
+    assert valuation == {"current_value": None, "as_of": None, "unrealised": None, "history": []}
+
+
+@pytest.mark.django_db
+def test_record_portfolio_value_command_upserts():
+    """
+    The CLI creates a snapshot the first time and updates it on re-run.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    broker = Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+
+    call_command("record_portfolio_value", broker.iban, "2026-02-28", "150.00")
+    assert PortfolioSnapshot.objects.filter(account=broker, as_of=date(2026, 2, 28)).count() == 1
+    assert PortfolioSnapshot.objects.get(account=broker, as_of=date(2026, 2, 28)).market_value == Decimal("150.00")
+
+    # Re-running with a different value updates in place
+    call_command("record_portfolio_value", broker.iban, "2026-02-28", "175.00", "--note", "corrected")
+    assert PortfolioSnapshot.objects.filter(account=broker, as_of=date(2026, 2, 28)).count() == 1
+    snap = PortfolioSnapshot.objects.get(account=broker, as_of=date(2026, 2, 28))
+    assert snap.market_value == Decimal("175.00")
+    assert snap.note == "corrected"
 
 
 @pytest.mark.django_db

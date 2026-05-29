@@ -20,10 +20,21 @@
     <div class="text-sm text-cyan-700 dark:text-cyan-300 mt-2" id="kpi-months">—</div>
   </div>
   <div class="tile col-span-6 md:col-span-4">
+    <div class="tile-label">Current value</div>
+    <div class="stat-num" id="kpi-value">—</div>
+    <div class="text-xs text-zinc-500 mt-1" id="kpi-value-as-of">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-4">
+    <div class="tile-label">Unrealised gain</div>
+    <div class="stat-num" id="kpi-gain">—</div>
+    <div class="text-xs text-zinc-500 mt-1" id="kpi-gain-pct">—</div>
+  </div>
+
+  <div class="tile col-span-6 md:col-span-6">
     <div class="tile-label">YTD invested</div>
     <div class="stat-num" id="kpi-ytd">—</div>
   </div>
-  <div class="tile col-span-6 md:col-span-4">
+  <div class="tile col-span-6 md:col-span-6">
     <div class="tile-label">Last month</div>
     <div class="stat-num" id="kpi-last">—</div>
   </div>
@@ -109,6 +120,32 @@
     const total = data.cumulative.length ? data.cumulative[data.cumulative.length - 1].total : 0;
     document.getElementById("kpi-net").textContent    = d.formatCurrency(total);
     document.getElementById("kpi-months").textContent = `Over ${data.monthly.length} months`;
+
+    // Valuation tiles: current value, unrealised gain, gain %
+    const v = data.valuation || { current_value: null, as_of: null, unrealised: null };
+    const valueEl  = document.getElementById("kpi-value");
+    const asOfEl   = document.getElementById("kpi-value-as-of");
+    const gainEl   = document.getElementById("kpi-gain");
+    const gainPctEl = document.getElementById("kpi-gain-pct");
+    if (v.current_value === null) {
+      valueEl.textContent  = "—";
+      asOfEl.textContent   = "No snapshot yet";
+      gainEl.textContent   = "—";
+      gainEl.className     = "stat-num";
+      gainPctEl.textContent = "Record one with: manage.py record_portfolio_value";
+    } else {
+      valueEl.textContent = d.formatCurrency(v.current_value);
+      asOfEl.textContent  = `as of ${v.as_of}`;
+      const gain = v.unrealised;
+      gainEl.textContent  = d.formatCurrency(gain);
+      gainEl.className    = "stat-num " + (gain >= 0
+        ? "text-emerald-600 dark:text-emerald-400"
+        : "text-rose-600 dark:text-rose-400");
+      const pct = total > 0 ? (gain / total) * 100 : 0;
+      gainPctEl.textContent = total > 0
+        ? `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% vs net invested`
+        : "—";
+    }
 
     const thisYear = new Date().getFullYear().toString();
     const ytd = data.monthly.filter(r => r.period.startsWith(thisYear)).reduce((s, r) => s + r.net, 0);
