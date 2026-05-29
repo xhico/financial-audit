@@ -64,8 +64,8 @@
 </div>
 
 <!-- Edit modal: hidden until a row's "edit" button is clicked -->
-<div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-900/60">
-  <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-5">
+<div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-900/60 p-4 overflow-y-auto">
+  <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-2xl mx-auto my-auto p-5">
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Edit transaction</h2>
       <button type="button" id="edit-close" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">✕</button>
@@ -76,7 +76,7 @@
         <input name="date" type="date" required>
       </label>
       <label class="filter-field">Description
-        <input name="description" type="text" required>
+        <textarea name="description" rows="2" required class="resize-y"></textarea>
       </label>
       <div class="grid grid-cols-2 gap-3">
         <label class="filter-field">Amount
