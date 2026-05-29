@@ -19,28 +19,51 @@
 }
 
 @layer components {
-  /* Top navigation bar */
-  .topbar {
-    @apply sticky top-0 z-10 backdrop-blur border-b
-           bg-stone-50/85 border-zinc-200/70
-           dark:bg-zinc-950/85 dark:border-zinc-800/70;
-  }
-  .topbar-inner { @apply max-w-7xl mx-auto px-4 md:px-8 h-16 flex items-center gap-6; }
+  /* Brand mark (used in the sidebar header and the mobile top bar) */
   .brand        { @apply flex items-center gap-2 font-semibold tracking-tight text-base shrink-0 text-zinc-900 dark:text-zinc-100; }
   .brand:hover  { text-decoration: none; }
   .brand-mark {
     @apply w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white grid place-items-center font-bold text-sm shadow-md shadow-indigo-500/25;
   }
-  .topnav   { @apply flex items-center gap-1 overflow-x-auto flex-1 min-w-0; }
-  .topnav a {
-    @apply px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition
+
+  /* Sidebar shell: fixed on desktop, slide-in drawer on mobile */
+  .sidebar {
+    @apply fixed inset-y-0 left-0 z-40 w-60 flex flex-col
+           border-r bg-stone-50/95 border-zinc-200/70 backdrop-blur
+           dark:bg-zinc-950/95 dark:border-zinc-800/70
+           -translate-x-full lg:translate-x-0 transition-transform duration-200;
+  }
+  .sidebar.is-open { @apply translate-x-0; }
+  .sidebar-header  { @apply h-16 px-4 flex items-center border-b border-zinc-200/70 dark:border-zinc-800/70; }
+  .sidebar-footer  { @apply mt-auto px-3 py-3 border-t border-zinc-200/70 dark:border-zinc-800/70 flex flex-col gap-1; }
+
+  /* Vertical nav links inside the sidebar */
+  .sidenav   { @apply flex flex-col gap-0.5 px-3 py-4 flex-1 overflow-y-auto; }
+  .sidenav a {
+    @apply px-3 py-2 rounded-lg text-sm font-medium transition
            text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900
            dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100;
   }
-  .topnav a.is-active {
+  .sidenav a.is-active {
     @apply bg-zinc-900 text-white hover:bg-zinc-800 hover:text-white
            dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-white dark:hover:text-zinc-900;
   }
+
+  /* Mobile top bar that hosts the hamburger; hidden on desktop */
+  .mobile-bar {
+    @apply lg:hidden sticky top-0 z-30 h-14 px-3 flex items-center gap-3 border-b
+           bg-stone-50/95 border-zinc-200/70 backdrop-blur
+           dark:bg-zinc-950/95 dark:border-zinc-800/70;
+  }
+  .icon-btn {
+    @apply w-9 h-9 grid place-items-center rounded-full transition
+           text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100
+           dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800;
+  }
+
+  /* Backdrop behind the mobile drawer */
+  .sidebar-scrim { @apply fixed inset-0 z-30 bg-zinc-900/40 lg:hidden hidden; }
+  .sidebar-scrim.is-open { @apply block; }
 
   /* Theme toggle button */
   .theme-toggle {

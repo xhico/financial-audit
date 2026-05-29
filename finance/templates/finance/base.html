@@ -32,9 +32,12 @@
   <script src="{% static 'finance/dashboard.js' %}" defer></script>
 </head>
 <body class="font-sans antialiased">
-<div class="min-h-screen">
-  <header class="topbar">
-    <div class="topbar-inner">
+
+  {# Backdrop shown behind the sidebar on mobile when the drawer is open #}
+  <div id="sidebar-scrim" class="sidebar-scrim"></div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
       <a class="brand" href="{% url 'pages:overview' %}">
         <span class="brand-mark">
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="currentColor">
@@ -45,34 +48,65 @@
         </span>
         <span>FinancialAudit</span>
       </a>
-      <nav class="topnav">
-        <a href="{% url 'pages:overview' %}"     class="{% if request.resolver_match.url_name == 'overview' %}is-active{% endif %}">Overview</a>
-        <a href="{% url 'pages:income' %}"       class="{% if request.resolver_match.url_name == 'income' %}is-active{% endif %}">Income</a>
-        <a href="{% url 'pages:expenses' %}"     class="{% if request.resolver_match.url_name == 'expenses' %}is-active{% endif %}">Expenses</a>
-        <a href="{% url 'pages:cashflow' %}"     class="{% if request.resolver_match.url_name == 'cashflow' %}is-active{% endif %}">Cashflow</a>
-        <a href="{% url 'pages:net-worth' %}"    class="{% if request.resolver_match.url_name == 'net-worth' %}is-active{% endif %}">Net worth</a>
-        <a href="{% url 'pages:investments' %}"  class="{% if request.resolver_match.url_name == 'investments' %}is-active{% endif %}">Investments</a>
-        <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
-        <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
-        <a href="{% url 'pages:upload' %}" class="{% if request.resolver_match.url_name == 'upload' %}is-active{% endif %}">Upload</a>
-      </nav>
-      <div class="flex items-center gap-2 shrink-0">
+    </div>
+
+    <nav class="sidenav">
+      <a href="{% url 'pages:overview' %}"     class="{% if request.resolver_match.url_name == 'overview' %}is-active{% endif %}">Overview</a>
+      <a href="{% url 'pages:income' %}"       class="{% if request.resolver_match.url_name == 'income' %}is-active{% endif %}">Income</a>
+      <a href="{% url 'pages:expenses' %}"     class="{% if request.resolver_match.url_name == 'expenses' %}is-active{% endif %}">Expenses</a>
+      <a href="{% url 'pages:cashflow' %}"     class="{% if request.resolver_match.url_name == 'cashflow' %}is-active{% endif %}">Cashflow</a>
+      <a href="{% url 'pages:net-worth' %}"    class="{% if request.resolver_match.url_name == 'net-worth' %}is-active{% endif %}">Net worth</a>
+      <a href="{% url 'pages:investments' %}"  class="{% if request.resolver_match.url_name == 'investments' %}is-active{% endif %}">Investments</a>
+      <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
+      <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
+      <a href="{% url 'pages:upload' %}"       class="{% if request.resolver_match.url_name == 'upload' %}is-active{% endif %}">Upload</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="flex items-center justify-between px-2 py-1 text-sm text-zinc-500 dark:text-zinc-400">
+        <span class="truncate text-zinc-700 dark:text-zinc-200 font-medium">{{ request.user.username }}</span>
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
           <svg class="icon-sun"  xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
           <svg class="icon-moon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
-        <div class="hidden md:flex items-center gap-3 text-sm text-zinc-500 dark:text-zinc-400">
-          <span class="text-zinc-700 dark:text-zinc-200 font-medium">{{ request.user.username }}</span>
-          <span class="text-zinc-300 dark:text-zinc-700">·</span>
-          <a href="/admin/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Admin</a>
-          <a href="/admin/logout/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Sign out</a>
-        </div>
+      </div>
+      <div class="flex items-center gap-3 px-2 text-xs text-zinc-500 dark:text-zinc-400">
+        <a href="/admin/"        class="hover:text-zinc-900 dark:hover:text-zinc-100">Admin</a>
+        <span class="text-zinc-300 dark:text-zinc-700">·</span>
+        <a href="/admin/logout/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Sign out</a>
       </div>
     </div>
+  </aside>
+
+  {# Mobile-only top bar with the hamburger toggle #}
+  <header class="mobile-bar lg:pl-60">
+    <button type="button" id="sidebar-toggle" class="icon-btn" aria-label="Open menu" title="Open menu">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+    <a class="brand" href="{% url 'pages:overview' %}">
+      <span>FinancialAudit</span>
+    </a>
   </header>
-  <main class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
-    {% block content %}{% endblock %}
+
+  <main class="lg:pl-60">
+    <div class="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-10">
+      {% block content %}{% endblock %}
+    </div>
   </main>
-</div>
+
+  <script>
+    // Mobile drawer: toggle the .is-open class on both sidebar and scrim
+    (function () {
+      var sidebar = document.getElementById("sidebar");
+      var scrim   = document.getElementById("sidebar-scrim");
+      var toggle  = document.getElementById("sidebar-toggle");
+      function open()  { sidebar.classList.add("is-open"); scrim.classList.add("is-open"); }
+      function close() { sidebar.classList.remove("is-open"); scrim.classList.remove("is-open"); }
+      if (toggle) toggle.addEventListener("click", open);
+      if (scrim)  scrim.addEventListener("click", close);
+      // Close after navigating on mobile so the drawer doesn't stay over the new page
+      document.querySelectorAll(".sidenav a").forEach(function (a) { a.addEventListener("click", close); });
+    })();
+  </script>
 </body>
 </html>
