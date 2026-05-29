@@ -17,22 +17,30 @@
 
 <div class="grid grid-cols-12 gap-3">
 
-  <!-- Net-worth role tiles (shown only on the All view) -->
-  <div class="tile business col-span-6 md:col-span-3" data-only="all">
-    <div class="tile-label">Business</div>
-    <div class="stat-num" data-kpi="business">—</div>
-  </div>
-  <div class="tile mortgage col-span-6 md:col-span-3" data-only="all">
-    <div class="tile-label">House</div>
-    <div class="stat-num" data-kpi="house">—</div>
-  </div>
-  <div class="tile personal col-span-6 md:col-span-3" data-only="all">
-    <div class="tile-label">Personal</div>
-    <div class="stat-num" data-kpi="personal">—</div>
-  </div>
-  <div class="tile savings col-span-6 md:col-span-3" data-only="all">
-    <div class="tile-label">Savings</div>
-    <div class="stat-num" data-kpi="savings">—</div>
+  <!-- Net-worth role tiles (shown only on the All view).
+       Wrapped in a 5-column sub-grid so the five tiles share the row evenly
+       on md+; 12 / 5 has no clean span, so a nested grid is the right tool. -->
+  <div class="col-span-12 grid grid-cols-2 md:grid-cols-5 gap-3" data-only="all">
+    <div class="tile business">
+      <div class="tile-label">Business</div>
+      <div class="stat-num" data-kpi="business">—</div>
+    </div>
+    <div class="tile mortgage">
+      <div class="tile-label">House</div>
+      <div class="stat-num" data-kpi="house">—</div>
+    </div>
+    <div class="tile personal">
+      <div class="tile-label">Personal</div>
+      <div class="stat-num" data-kpi="personal">—</div>
+    </div>
+    <div class="tile savings">
+      <div class="tile-label">Savings</div>
+      <div class="stat-num" data-kpi="savings">—</div>
+    </div>
+    <div class="tile investment">
+      <div class="tile-label">Investments</div>
+      <div class="stat-num" data-kpi="investments">—</div>
+    </div>
   </div>
 
   <!-- Year-to-date headline (filtered by view) -->
@@ -211,11 +219,12 @@
     overviewData = await d.fetchJson("/api/dashboard/overview/");
     if (overviewData.net_worth) {
       const nw = overviewData.net_worth;
-      document.querySelector('[data-kpi="business"]').textContent = d.formatCurrency(nw.business);
-      document.querySelector('[data-kpi="house"]').textContent    = d.formatCurrency(nw.house);
-      document.querySelector('[data-kpi="personal"]').textContent = d.formatCurrency(nw.personal);
-      document.querySelector('[data-kpi="savings"]').textContent  = d.formatCurrency(nw.savings);
-      document.getElementById("period-label").textContent         = `Snapshot ${nw.as_of}`;
+      document.querySelector('[data-kpi="business"]').textContent    = d.formatCurrency(nw.business);
+      document.querySelector('[data-kpi="house"]').textContent       = d.formatCurrency(nw.house);
+      document.querySelector('[data-kpi="personal"]').textContent    = d.formatCurrency(nw.personal);
+      document.querySelector('[data-kpi="savings"]').textContent     = d.formatCurrency(nw.savings);
+      document.querySelector('[data-kpi="investments"]').textContent = d.formatCurrency(nw.investments);
+      document.getElementById("period-label").textContent            = `Snapshot ${nw.as_of}`;
     }
     document.getElementById("count-accounts").textContent      = d.formatInt(overviewData.counts.accounts);
     document.getElementById("count-statements").textContent    = d.formatInt(overviewData.counts.statements);
