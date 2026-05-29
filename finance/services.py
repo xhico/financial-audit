@@ -9,7 +9,6 @@ one idempotent code path.
 """
 
 from dataclasses import dataclass
-from datetime import date
 
 from django.db import transaction
 
@@ -22,7 +21,7 @@ from finance.models import (
     StatementImport,
     Transaction,
 )
-from finance.parsers import degiro as degiro_parser
+from finance.parsers import degiro_csv as degiro_csv_parser
 from finance.parsers import parse
 
 # Synthetic IBAN for the Degiro Cash Account; not a real PT IBAN since the
@@ -176,29 +175,28 @@ def import_statement(text, source_file=""):
 
 
 @transaction.atomic
-def import_degiro_report(text, source_file=""):
+def import_degiro_csv(text, source_file=""):
     """
-    Import a Degiro annual report's net flow as a single Investment movement.
+    Import a Degiro Account.csv as per-deposit Investment transactions.
 
-    Creates (or reuses) the Degiro Cash Account and inserts one transaction
-    per year representing the net deposits, dated December 31 of that year.
-    Re-importing the same report is safe; the dedupe key absorbs it.
+    Creates (or reuses) the Degiro Cash Account, parses every deposit and
+    withdrawal from the export and inserts one transaction each, all
+    classified as Investment. The dedupe key absorbs re-imports of the
+    same export.
 
     Args:
-        text (str): The extracted report text
+        text (str): The CSV text
         source_file (str): Original filename, kept for traceability
 
     Returns:
-        dict: Summary including the year, parsed figures and whether the
-        transaction was newly created or skipped
+        dict: Summary including counts and the account touched
 
     Raises:
-        ValueError: When the report cannot be parsed
+        ValueError: When the file does not look like a Degiro account export
     """
 
-    parsed = degiro_parser.parse(text)
+    parsed = degiro_csv_parser.parse(text)
 
-    # Reuse one Degiro account across imports, owned personally by the user
     account, _ = Account.objects.get_or_create(
         iban=DEGIRO_IBAN,
         defaults={
@@ -211,34 +209,34 @@ def import_degiro_report(text, source_file=""):
     )
     investment_cat, _ = Category.objects.get_or_create(name="Investment", defaults={"kind": Category.Kind.INVESTMENT})
 
-    # Bank-side perspective: a net deposit reads as negative (money leaving
-    # the user's bank to land at the broker)
-    year_end = date(parsed.year, 12, 31)
-    net = parsed.deposits - parsed.withdrawals
-    description = f"Annual movement {parsed.year}: deposits €{parsed.deposits}, withdrawals €{parsed.withdrawals}"
-    amount = -net
-
-    key = Transaction.build_dedupe_key(account.id, year_end, description, amount, None)
-    _, was_created = Transaction.objects.get_or_create(
-        dedupe_key=key,
-        defaults={
-            "account": account,
-            "date": year_end,
-            "description": description,
-            "amount": amount,
-            "balance": None,
-            "category": investment_cat,
-        },
-    )
+    created = 0
+    skipped = 0
+    for movement in parsed.movements:
+        key = Transaction.build_dedupe_key(
+            account.id, movement.date, movement.description, movement.amount, movement.balance
+        )
+        _, was_created = Transaction.objects.get_or_create(
+            dedupe_key=key,
+            defaults={
+                "account": account,
+                "date": movement.date,
+                "description": movement.description,
+                "amount": movement.amount,
+                "balance": movement.balance,
+                "category": investment_cat,
+            },
+        )
+        if was_created:
+            created += 1
+        else:
+            skipped += 1
 
     return {
-        "year": parsed.year,
         "account": account,
-        "deposits": parsed.deposits,
-        "withdrawals": parsed.withdrawals,
-        "net": net,
-        "created": 1 if was_created else 0,
-        "skipped": 0 if was_created else 1,
+        "movements": len(parsed.movements),
+        "created": created,
+        "skipped": skipped,
+        "source_file": source_file,
     }
 
 
