@@ -488,9 +488,10 @@ class OverviewView(APIView):
         series = _compute_net_worth_series()
         net_worth_block = series[-1] if series else None
 
-        # Date range we report on: current month and current calendar year
+        # Date range we report on: the calendar year so far. Statements are
+        # imported once a month, so a month-to-date figure would drift between
+        # being "last month" and "nothing yet" depending on the import day.
         today = date.today()
-        month_start = today.replace(day=1)
         year_start = today.replace(month=1, day=1)
 
         def _totals(scope, since):
@@ -517,7 +518,6 @@ class OverviewView(APIView):
         return Response(
             {
                 "net_worth": net_worth_block,
-                "month_to_date": _periods(month_start),
                 "year_to_date": _periods(year_start),
                 "counts": {
                     # Keep the headline count consistent with the Accounts list,

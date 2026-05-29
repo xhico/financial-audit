@@ -35,23 +35,11 @@
     <div class="stat-num" data-kpi="savings">—</div>
   </div>
 
-  <!-- Period totals row (filtered by view) -->
-  <div class="tile col-span-6 md:col-span-3 flex flex-col">
-    <div class="tile-label">MTD income</div>
-    <div class="stat-num text-emerald-600 dark:text-emerald-400" id="mtd-income">—</div>
-  </div>
-  <div class="tile col-span-6 md:col-span-3 flex flex-col">
-    <div class="tile-label">MTD expenses</div>
-    <div class="stat-num text-rose-600 dark:text-rose-400" id="mtd-expenses">—</div>
-  </div>
-  <div class="tile col-span-6 md:col-span-3 flex flex-col">
-    <div class="tile-label">MTD net</div>
-    <div class="stat-num" id="mtd-net">—</div>
-    <div class="text-xs text-zinc-500 mt-1" id="mtd-period">—</div>
-  </div>
-  <div class="tile income col-span-6 md:col-span-3 flex flex-col">
+  <!-- Year-to-date headline (filtered by view) -->
+  <div class="tile income col-span-12 flex flex-col">
     <div class="tile-label">YTD income</div>
     <div class="stat-num" id="ytd-income">—</div>
+    <div class="text-xs text-zinc-500 mt-1" id="ytd-period">—</div>
   </div>
 
   <!-- Cashflow strip -->
@@ -166,13 +154,9 @@
     const d = window.dashboard;
     if (!overviewData) return;
 
-    const mtd = overviewData.month_to_date[currentView];
     const ytd = overviewData.year_to_date[currentView];
-    document.getElementById("mtd-income").textContent   = d.formatCurrency(mtd.income);
-    document.getElementById("mtd-expenses").textContent = d.formatCurrency(-mtd.expenses);
-    document.getElementById("mtd-net").textContent      = d.formatCurrency(mtd.net);
-    document.getElementById("mtd-period").textContent   = `since ${overviewData.month_to_date.since}`;
-    document.getElementById("ytd-income").textContent   = d.formatCurrency(ytd.income);
+    document.getElementById("ytd-income").textContent = d.formatCurrency(ytd.income);
+    document.getElementById("ytd-period").textContent = `since ${overviewData.year_to_date.since}`;
 
     // Cashflow strip uses the cashflow scope series
     const recent = (cashflowScopes[currentView] || []).slice(-12);
