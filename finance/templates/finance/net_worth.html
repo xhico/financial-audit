@@ -27,8 +27,8 @@
     <div class="stat-num" id="kpi-business">—</div>
   </div>
   <div class="tile mortgage col-span-6 md:col-span-3 hidden md:block" data-only="all house">
-    <div class="tile-label">Mortgage</div>
-    <div class="stat-num" id="kpi-mortgage">—</div>
+    <div class="tile-label">House</div>
+    <div class="stat-num" id="kpi-house">—</div>
   </div>
   <div class="tile personal col-span-6 md:col-span-3 hidden md:block" data-only="all personal">
     <div class="tile-label">Personal</div>
@@ -41,6 +41,11 @@
   <div class="tile investment col-span-6 md:col-span-3 hidden md:block" data-only="all investments">
     <div class="tile-label">Investments</div>
     <div class="stat-num" id="kpi-investments">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-3 hidden md:block" data-only="all house">
+    <div class="tile-label">Mortgage</div>
+    <div class="stat-num text-rose-600 dark:text-rose-400" id="kpi-mortgage">—</div>
+    <div class="text-xs text-zinc-500 mt-1">informational — not in net worth</div>
   </div>
 
   <div class="tile col-span-12">
@@ -116,6 +121,7 @@
     document.getElementById("hero-value").textContent = d.formatCurrency(pickValue(last));
     document.getElementById("hero-sub").textContent   = `as of ${last.as_of}`;
     document.getElementById("kpi-business").textContent    = d.formatCurrency(last.business);
+    document.getElementById("kpi-house").textContent       = d.formatCurrency(last.house);
     document.getElementById("kpi-personal").textContent    = d.formatCurrency(last.personal);
     document.getElementById("kpi-savings").textContent     = d.formatCurrency(last.savings);
     document.getElementById("kpi-investments").textContent = d.formatCurrency(last.investments);
