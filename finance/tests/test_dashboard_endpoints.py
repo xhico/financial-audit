@@ -197,6 +197,53 @@ def test_accounts_endpoint_reports_latest_balance(api_client, seeded):
 
 
 @pytest.mark.django_db
+def test_brokerage_accounts_hidden_from_dashboards(api_client, seeded):
+    """
+    Brokerage accounts are excluded from the Accounts list, the overview
+    count and the role-based net-worth buckets.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data
+
+    Returns:
+        None
+    """
+
+    # Add a brokerage account with a cash balance that, if included, would
+    # distort the personal net-worth bucket and inflate the account count.
+    broker = Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+    broker_cash = Decimal("123.45")
+    Transaction.objects.create(
+        account=broker,
+        date=date(2026, 4, 30),
+        description="flatex Deposit",
+        amount=Decimal("-100.00"),
+        balance=broker_cash,
+    )
+
+    accounts = api_client.get("/api/dashboard/accounts/").data
+    assert "Broker" not in {a["name"] for a in accounts}
+    # The two banking accounts from the seeded fixture are still there
+    assert {a["name"] for a in accounts} == {"House", "Business"}
+
+    overview = api_client.get("/api/dashboard/overview/").data
+    assert overview["counts"]["accounts"] == 2
+
+    net_worth = api_client.get("/api/dashboard/net-worth/").data
+    # The broker cash must not leak into the personal bucket
+    for entry in net_worth:
+        assert entry["personal"] != float(broker_cash)
+
+
+@pytest.mark.django_db
 def test_overview_endpoint_summary_numbers(api_client, seeded):
     """
     Overview endpoint reports counts and the latest snapshot.

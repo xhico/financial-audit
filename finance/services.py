@@ -204,7 +204,7 @@ def import_degiro_csv(text, source_file=""):
             "bank": "flatexDEGIRO Bank",
             "scope": Account.Scope.PERSONAL,
             "role": Account.Role.PERSONAL,
-            "kind": Account.Kind.TERM,
+            "kind": Account.Kind.BROKERAGE,
         },
     )
     investment_cat, _ = Category.objects.get_or_create(name="Investment", defaults={"kind": Category.Kind.INVESTMENT})

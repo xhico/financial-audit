@@ -31,6 +31,11 @@ class Account(models.Model):
         SAVINGS = "savings", "Savings"
         TERM = "term", "Term deposit"
         CREDIT = "credit", "Credit"
+        # An investment / brokerage account (e.g. Degiro). Excluded from the
+        # Accounts list and the role-based net-worth buckets, because the
+        # stored balance only reflects uninvested cash at the broker, not
+        # the portfolio value.
+        BROKERAGE = "brokerage", "Brokerage"
 
     class Role(models.TextChoices):
         HOUSE = "house", "Household (holds the mortgage)"

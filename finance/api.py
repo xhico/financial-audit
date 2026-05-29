@@ -359,10 +359,13 @@ def _compute_net_worth_series():
         business / personal / house components and the all-up net worth.
     """
 
-    # Cache the accounts per role so we don't re-query inside the loop
-    house_accounts = list(Account.objects.filter(role=Account.Role.HOUSE))
-    personal_accounts = list(Account.objects.filter(role=Account.Role.PERSONAL))
-    business_accounts = list(Account.objects.filter(role=Account.Role.BUSINESS))
+    # Cache the accounts per role so we don't re-query inside the loop.
+    # Brokerage accounts are excluded because their stored balance reflects
+    # only uninvested cash at the broker, not the portfolio value, and the
+    # Investment category already accounts for the wallet outflows.
+    house_accounts = list(Account.objects.filter(role=Account.Role.HOUSE).exclude(kind=Account.Kind.BROKERAGE))
+    personal_accounts = list(Account.objects.filter(role=Account.Role.PERSONAL).exclude(kind=Account.Kind.BROKERAGE))
+    business_accounts = list(Account.objects.filter(role=Account.Role.BUSINESS).exclude(kind=Account.Kind.BROKERAGE))
 
     series = []
     for snap in BalanceSnapshot.objects.order_by("as_of"):
@@ -438,8 +441,11 @@ class AccountsView(APIView):
             Response: One entry per account, sorted by scope and name
         """
 
+        # Brokerage accounts (e.g. Degiro) are intentionally hidden here:
+        # their balance only reflects uninvested cash at the broker, not the
+        # portfolio value, which would be misleading on a banking-style list.
         accounts = []
-        for account in Account.objects.order_by("scope", "name"):
+        for account in Account.objects.exclude(kind=Account.Kind.BROKERAGE).order_by("scope", "name"):
             # Use the dated-then-id order to break ties on same-day movements
             last = account.transactions.order_by("-date", "-id").first()
             accounts.append(
@@ -514,7 +520,9 @@ class OverviewView(APIView):
                 "month_to_date": _periods(month_start),
                 "year_to_date": _periods(year_start),
                 "counts": {
-                    "accounts": Account.objects.count(),
+                    # Keep the headline count consistent with the Accounts list,
+                    # which hides brokerage holdings.
+                    "accounts": Account.objects.exclude(kind=Account.Kind.BROKERAGE).count(),
                     "statements": StatementImport.objects.count(),
                     "transactions": Transaction.objects.count(),
                     "uncategorised": Transaction.objects.filter(category__isnull=True).count(),
