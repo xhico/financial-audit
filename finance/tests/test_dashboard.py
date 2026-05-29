@@ -152,14 +152,16 @@ def test_net_worth_endpoint_from_snapshot(api_client):
         None
     """
 
+    savings = Decimal("10.00")
+    mortgage = Decimal("100.00")
     statement = StatementImport.objects.create(bank="cgd", scope="personal", period_end=date(2026, 4, 30))
     BalanceSnapshot.objects.create(
         statement=statement,
         as_of=date(2026, 4, 30),
-        current_total=Decimal("1000.00"),
-        savings_total=Decimal("5000.00"),
+        current_total=Decimal("0.00"),
+        savings_total=savings,
         investments_total=Decimal("0.00"),
-        mortgage_balance=Decimal("100000.00"),
+        mortgage_balance=mortgage,
     )
 
     response = api_client.get("/api/dashboard/net-worth/")
@@ -167,13 +169,15 @@ def test_net_worth_endpoint_from_snapshot(api_client):
     assert response.status_code == 200
     assert len(response.data) == 1
     entry = response.data[0]
-    assert entry["savings"] == 5000.0
-    # No accounts in this fixture, so business/personal/house_current are all
-    # zero. House is just -mortgage, savings stays separate.
+    # No accounts in this fixture, so business / personal / house are all zero.
+    # Mortgage is reported alongside but is no longer subtracted from net worth.
     assert entry["business"] == 0.0
     assert entry["personal"] == 0.0
-    assert entry["house"] == -100000.0
-    assert entry["net_worth"] == 0.0 + 0.0 + (-100000.0) + 5000.0 + 0.0
+    assert entry["house"] == 0.0
+    assert entry["savings"] == float(savings)
+    assert entry["mortgage"] == float(mortgage)
+    # Net worth = business + personal + house + savings + investments (no mortgage)
+    assert entry["net_worth"] == float(savings)
 
 
 @pytest.mark.django_db

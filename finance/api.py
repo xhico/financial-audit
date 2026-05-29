@@ -378,9 +378,9 @@ def _compute_net_worth_series():
         personal_current = sum(_account_balance_at(a, as_of) for a in personal_accounts)
         business_current = sum(_account_balance_at(a, as_of) for a in business_accounts)
 
-        # House equity is the household current account net of the mortgage;
-        # savings and investments are tracked as their own components below
-        house_total = house_current - mortgage
+        # House is just the household current account; the mortgage is shown
+        # alongside for context but does not reduce the net-worth total
+        house_total = house_current
         net_worth = business_current + personal_current + house_total + savings + investments
 
         series.append(

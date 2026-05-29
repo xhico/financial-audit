@@ -93,7 +93,7 @@
     return ({
       all:      "Net worth",
       business: "Business net worth",
-      house:    "Household equity",
+      house:    "House account",
       personal: "Personal liquid",
       savings:  "Savings",
     })[currentView];
@@ -123,9 +123,8 @@
       );
     } else if (currentView === "house") {
       datasets.push(
-        { label: "Household equity", data: data.map(r => r.house),         borderColor: d.accents.mortgage,   backgroundColor: "rgba(245,158,11,0.10)", fill: true, tension: 0.25 },
-        { label: "House account",    data: data.map(r => r.house_current), borderColor: "#0ea5e9", tension: 0.25 },
-        { label: "Mortgage",         data: data.map(r => -r.mortgage),     borderColor: d.accents.expense, tension: 0.25 },
+        { label: "House account", data: data.map(r => r.house),     borderColor: d.accents.mortgage, backgroundColor: "rgba(245,158,11,0.10)", fill: true, tension: 0.25 },
+        { label: "Mortgage",      data: data.map(r => -r.mortgage), borderColor: d.accents.expense,  tension: 0.25 },
       );
     } else if (currentView === "business") {
       datasets.push(
