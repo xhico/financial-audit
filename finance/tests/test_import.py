@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from finance.models import Account, BalanceSnapshot, StatementImport, Transaction
+from finance.models import Account, BalanceSnapshot, Category, CategoryRule, StatementImport, Transaction
 from finance.services import import_statement
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -75,6 +75,58 @@ def test_reimport_is_idempotent():
     assert Account.objects.count() == 2
     assert Transaction.objects.count() == 4
     assert StatementImport.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_business_statement_tags_account_as_business_role():
+    """
+    A business-scope import assigns the BUSINESS role on the new account.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    import_statement(_load("credito_agricola_sample.txt"), source_file="ca.pdf")
+
+    account = Account.objects.get(scope="business")
+    assert account.role == "business"
+
+
+@pytest.mark.django_db
+def test_personal_account_with_mortgage_is_promoted_to_house():
+    """
+    A personal-scope account whose ledger contains a Mortgage movement is
+    tagged with the HOUSE role on import.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    # Seeding a rule that matches a description present in the CGD fixture
+    # lets the importer classify that movement as Mortgage and then promote
+    # the owning account to the HOUSE role.
+    mortgage = Category.objects.create(name="Mortgage", kind=Category.Kind.EXPENSE)
+    CategoryRule.objects.create(
+        match_text="EXAMPLE INSURANCE",
+        sign=CategoryRule.Sign.DEBIT,
+        category=mortgage,
+        priority=10,
+    )
+
+    import_statement(_load("cgd_sample.txt"), source_file="cgd_sample.pdf")
+
+    house_accounts = list(Account.objects.filter(role=Account.Role.HOUSE))
+    assert len(house_accounts) == 1
+    assert house_accounts[0].transactions.filter(category=mortgage).exists()
+    # The other personal account on the same statement stays at PERSONAL
+    other_personal = Account.objects.filter(scope="personal", role=Account.Role.PERSONAL)
+    assert other_personal.count() == 1
 
 
 @pytest.mark.django_db

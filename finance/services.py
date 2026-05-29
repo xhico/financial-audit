@@ -118,12 +118,18 @@ def import_statement(text, source_file=""):
     for parsed_account in parsed.accounts:
         if not parsed_account.iban:
             continue
+        # Derive the role from the account's scope at creation time. Business
+        # scope implies the BUSINESS role; personal scope defaults to PERSONAL
+        # and may be promoted to HOUSE further down once Mortgage transactions
+        # have been classified.
+        initial_role = Account.Role.BUSINESS if parsed.scope == Account.Scope.BUSINESS else Account.Role.PERSONAL
         account, _ = Account.objects.get_or_create(
             iban=parsed_account.iban,
             defaults={
                 "name": _account_name(parsed_account),
                 "bank": BANK_NAMES.get(parsed.bank, parsed.bank),
                 "scope": parsed.scope,
+                "role": initial_role,
                 "kind": parsed_account.kind,
             },
         )
@@ -168,6 +174,11 @@ def import_statement(text, source_file=""):
 
     # Classify the statement's transactions so the dashboards see them bucketed
     classify_transactions(statement.transactions.all())
+
+    # Promote any personal-scope account whose ledger contains a Mortgage
+    # movement to the HOUSE role. Mirrors the one-off backfill in migration
+    # 0004 so re-imports after a wipe end up with the same tagging.
+    _promote_household_accounts()
 
     return ImportResult(
         statement=statement, created=created, skipped=skipped, accounts=touched_accounts, ignored=ignored
@@ -238,6 +249,34 @@ def import_degiro_csv(text, source_file=""):
         "skipped": skipped,
         "source_file": source_file,
     }
+
+
+def _promote_household_accounts():
+    """
+    Tag any personal-scope account with Mortgage transactions as the household.
+
+    Idempotent: accounts already marked as HOUSE are left alone, and accounts
+    without a Mortgage movement keep their existing role.
+
+    Args:
+        None
+
+    Returns:
+        int: The number of accounts whose role was promoted
+    """
+
+    mortgage = Category.objects.filter(name="Mortgage").first()
+    if mortgage is None:
+        return 0
+
+    promoted = 0
+    candidates = Account.objects.filter(scope=Account.Scope.PERSONAL).exclude(role=Account.Role.HOUSE)
+    for account in candidates:
+        if account.transactions.filter(category=mortgage).exists():
+            account.role = Account.Role.HOUSE
+            account.save(update_fields=["role"])
+            promoted += 1
+    return promoted
 
 
 def classify_transactions(transactions=None):
