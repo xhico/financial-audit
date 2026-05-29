@@ -4,7 +4,7 @@
 
 from rest_framework import serializers
 
-from finance.models import Account, Category, Transaction
+from finance.models import Account, Category, PortfolioSnapshot, Transaction
 
 
 class CategoryBriefSerializer(serializers.ModelSerializer):
@@ -66,3 +66,30 @@ class TransactionSerializer(serializers.ModelSerializer):
             "category_id",
             "statement_id",
         )
+
+
+class PortfolioSnapshotSerializer(serializers.ModelSerializer):
+    """
+    Read/write serializer for a manually-recorded portfolio market value.
+
+    - Embeds the brokerage account as a read-only brief so the dashboard can
+      label the row
+    - Accepts account_id on write, restricted to brokerage-kind accounts so a
+      caller cannot accidentally attach a snapshot to a current account
+    """
+
+    account = AccountBriefSerializer(read_only=True)
+    account_id = serializers.PrimaryKeyRelatedField(
+        source="account",
+        queryset=Account.objects.filter(kind=Account.Kind.BROKERAGE),
+        write_only=True,
+    )
+
+    class Meta:
+        model = PortfolioSnapshot
+        fields = ("id", "account", "account_id", "as_of", "market_value", "note", "created_at")
+        read_only_fields = ("id", "created_at")
+        # The view treats POST as an upsert on (account, as_of). The database
+        # still enforces the unique constraint; we just need the serializer to
+        # stop rejecting a repeat submission as a uniqueness violation.
+        validators = []

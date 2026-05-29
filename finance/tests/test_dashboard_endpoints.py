@@ -499,6 +499,104 @@ def test_transaction_patch_can_clear_category(api_client, seeded):
 
 
 @pytest.mark.django_db
+def test_investments_endpoint_exposes_brokerage_accounts(api_client):
+    """
+    The investments endpoint includes the brokerage account list so the
+    frontend can populate the set-value modal's picker.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+
+    response = api_client.get("/api/dashboard/investments/")
+
+    assert response.status_code == 200
+    brokerages = response.data["brokerage_accounts"]
+    assert len(brokerages) == 1
+    assert brokerages[0]["name"] == "Broker"
+    assert brokerages[0]["iban"] == "BROKERIBAN"
+
+
+@pytest.mark.django_db
+def test_portfolio_snapshot_post_creates_and_upserts(api_client):
+    """
+    POST /api/portfolio-snapshots/ creates a snapshot first, then updates it
+    when the same (account, as_of) pair is submitted again.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    broker = Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+
+    first = api_client.post(
+        "/api/portfolio-snapshots/",
+        data={"account_id": broker.id, "as_of": "2026-02-28", "market_value": "10.00"},
+        format="json",
+    )
+    assert first.status_code == 201
+    assert PortfolioSnapshot.objects.filter(account=broker).count() == 1
+
+    second = api_client.post(
+        "/api/portfolio-snapshots/",
+        data={"account_id": broker.id, "as_of": "2026-02-28", "market_value": "25.00", "note": "corrected"},
+        format="json",
+    )
+    assert second.status_code == 200
+    assert PortfolioSnapshot.objects.filter(account=broker).count() == 1
+    snap = PortfolioSnapshot.objects.get(account=broker, as_of=date(2026, 2, 28))
+    assert snap.market_value == Decimal("25.00")
+    assert snap.note == "corrected"
+    # The response embeds the account brief for the frontend
+    assert second.data["account"]["iban"] == "BROKERIBAN"
+
+
+@pytest.mark.django_db
+def test_portfolio_snapshot_post_rejects_non_brokerage_account(api_client, seeded):
+    """
+    The endpoint refuses to attach a snapshot to a non-brokerage account.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data; the House account is kind=current
+
+    Returns:
+        None
+    """
+
+    response = api_client.post(
+        "/api/portfolio-snapshots/",
+        data={"account_id": seeded["house"].id, "as_of": "2026-02-28", "market_value": "10.00"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "account_id" in response.data
+
+
+@pytest.mark.django_db
 def test_upload_endpoint_dispatches_pdf_and_csv(api_client):
     """
     POSTing a CGD-format text file (.pdf extension) and a Degiro CSV runs

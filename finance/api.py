@@ -20,7 +20,12 @@ from rest_framework.views import APIView
 
 from finance.models import Account, BalanceSnapshot, Category, PortfolioSnapshot, StatementImport, Transaction
 from finance.parsers import extract_text
-from finance.serializers import CategoryBriefSerializer, TransactionSerializer
+from finance.serializers import (
+    AccountBriefSerializer,
+    CategoryBriefSerializer,
+    PortfolioSnapshotSerializer,
+    TransactionSerializer,
+)
 from finance.services import import_degiro_csv, import_statement
 
 
@@ -275,11 +280,18 @@ class InvestmentsView(APIView):
             Response: A dict with keys "all", "business" and "personal"
         """
 
+        # Expose the brokerage accounts so the frontend can populate the
+        # "set current value" picker without a second round-trip
+        brokerage_accounts = AccountBriefSerializer(
+            Account.objects.filter(kind=Account.Kind.BROKERAGE).order_by("name"), many=True
+        ).data
+
         return Response(
             {
                 "all": _investments_series(),
                 "business": _investments_series("business"),
                 "personal": _investments_series("personal"),
+                "brokerage_accounts": brokerage_accounts,
             }
         )
 
@@ -743,3 +755,38 @@ class UploadView(APIView):
                 # returned as part of that file's result row.
                 results.append({"file": uploaded.name, "error": str(exc)})
         return Response({"results": results})
+
+
+class PortfolioSnapshotView(APIView):
+    """
+    Record (or update) a manual portfolio-value snapshot.
+
+    - POST upserts on (account, as_of) so re-submitting the same date just
+      corrects the value, matching the record_portfolio_value CLI command
+    - Account must be brokerage-kind; the serializer enforces that
+    """
+
+    def post(self, request):
+        """
+        Validate the payload and upsert the snapshot.
+
+        Args:
+            request (Request): The incoming JSON request with account_id,
+                as_of, market_value and optional note
+
+        Returns:
+            Response: The serialized snapshot, 201 on create, 200 on update
+        """
+
+        serializer = PortfolioSnapshotSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        snapshot, created = PortfolioSnapshot.objects.update_or_create(
+            account=data["account"],
+            as_of=data["as_of"],
+            defaults={"market_value": data["market_value"], "note": data.get("note", "")},
+        )
+        # Re-serialize the saved row so the response carries the nested
+        # account brief and the created_at timestamp
+        return Response(PortfolioSnapshotSerializer(snapshot).data, status=201 if created else 200)
