@@ -60,7 +60,8 @@ class Command(BaseCommand):
             ibans = ", ".join(a.iban for a in result.accounts)
             self.stdout.write(
                 self.style.SUCCESS(
-                    f"{path.name}: +{result.created} new, {result.skipped} existing "
+                    f"{path.name}: +{result.created} new, {result.skipped} existing, "
+                    f"{result.ignored} ignored "
                     f"({result.statement}; accounts: {ibans})"
                 )
             )

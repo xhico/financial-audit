@@ -4,7 +4,7 @@
 
 from django.contrib import admin
 
-from finance.models import Account, Category, CategoryRule, StatementImport, Transaction
+from finance.models import Account, Category, CategoryRule, IgnoreRule, StatementImport, Transaction
 
 
 @admin.register(Account)
@@ -47,6 +47,19 @@ class CategoryRuleAdmin(admin.ModelAdmin):
     list_display = ("match_text", "sign", "scope", "effective_from", "category", "priority")
     list_filter = ("sign", "scope", "category")
     search_fields = ("match_text",)
+
+
+@admin.register(IgnoreRule)
+class IgnoreRuleAdmin(admin.ModelAdmin):
+    """
+    Admin for importer ignore rules.
+
+    - Lists the match text and the optional note
+    - Lets you add/remove patterns the importer should skip entirely
+    """
+
+    list_display = ("match_text", "note")
+    search_fields = ("match_text", "note")
 
 
 @admin.register(StatementImport)

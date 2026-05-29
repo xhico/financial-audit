@@ -175,6 +175,34 @@ class CategoryRule(models.Model):
         return True
 
 
+class IgnoreRule(models.Model):
+    """
+    A pattern that causes the statement importer to skip matching transactions.
+
+    - Lets you drop noisy rows (e.g. internal-transfer mirrors of broker deposits)
+    - Matched case-insensitively as a substring of the transaction description
+    """
+
+    match_text = models.CharField(max_length=120, unique=True)
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["match_text"]
+
+    def __str__(self):
+        """
+        Return a readable label for the rule.
+
+        Args:
+            None
+
+        Returns:
+            str: A short description of the pattern
+        """
+
+        return f"Skip {self.match_text!r}"
+
+
 class StatementImport(models.Model):
     """
     A single imported bank-statement PDF.

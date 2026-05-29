@@ -13,7 +13,15 @@ from datetime import date
 
 from django.db import transaction
 
-from finance.models import Account, BalanceSnapshot, Category, CategoryRule, StatementImport, Transaction
+from finance.models import (
+    Account,
+    BalanceSnapshot,
+    Category,
+    CategoryRule,
+    IgnoreRule,
+    StatementImport,
+    Transaction,
+)
 from finance.parsers import degiro as degiro_parser
 from finance.parsers import parse
 
@@ -34,6 +42,7 @@ class ImportResult:
     The outcome of importing one statement.
 
     - Reports how many transactions were created versus already present
+    - Counts rows dropped by an IgnoreRule separately from re-imports
     - Carries the statement and the accounts it touched
     """
 
@@ -41,6 +50,7 @@ class ImportResult:
     created: int
     skipped: int
     accounts: list
+    ignored: int = 0
 
 
 def _account_name(parsed_account):
@@ -97,8 +107,14 @@ def import_statement(text, source_file=""):
         **lookup,
     )
 
+    # Patterns whose matching rows should never enter the ledger (e.g. the
+    # bank-side mirror of a broker deposit, where the real movement is tracked
+    # in a separate import path)
+    ignore_patterns = [p.lower() for p in IgnoreRule.objects.values_list("match_text", flat=True)]
+
     created = 0
     skipped = 0
+    ignored = 0
     touched_accounts = []
     for parsed_account in parsed.accounts:
         if not parsed_account.iban:
@@ -115,6 +131,10 @@ def import_statement(text, source_file=""):
         touched_accounts.append(account)
 
         for txn in parsed_account.transactions:
+            description_lower = txn.description.lower()
+            if any(pattern in description_lower for pattern in ignore_patterns):
+                ignored += 1
+                continue
             key = Transaction.build_dedupe_key(account.id, txn.date, txn.description, txn.amount, txn.balance)
             _, was_created = Transaction.objects.get_or_create(
                 dedupe_key=key,
@@ -150,7 +170,9 @@ def import_statement(text, source_file=""):
     # Classify the statement's transactions so the dashboards see them bucketed
     classify_transactions(statement.transactions.all())
 
-    return ImportResult(statement=statement, created=created, skipped=skipped, accounts=touched_accounts)
+    return ImportResult(
+        statement=statement, created=created, skipped=skipped, accounts=touched_accounts, ignored=ignored
+    )
 
 
 @transaction.atomic

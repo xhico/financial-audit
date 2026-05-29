@@ -11,7 +11,15 @@ from django.contrib.auth.models import User
 from django.core.management import call_command
 from rest_framework.test import APIClient
 
-from finance.models import Account, BalanceSnapshot, Category, CategoryRule, StatementImport, Transaction
+from finance.models import (
+    Account,
+    BalanceSnapshot,
+    Category,
+    CategoryRule,
+    IgnoreRule,
+    StatementImport,
+    Transaction,
+)
 from finance.services import classify_transactions, import_statement
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -296,6 +304,67 @@ def test_seed_finance_loads_example_template():
     assert CategoryRule.objects.count() == 5
     # The example uses placeholder match strings, never real account data
     assert CategoryRule.objects.filter(match_text__startswith="EXAMPLE").count() == 5
+
+
+@pytest.mark.django_db
+def test_ignore_rule_skips_matching_transactions():
+    """
+    Importing with an IgnoreRule drops matching rows entirely.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    IgnoreRule.objects.create(match_text="EXAMPLE INSURANCE", note="test")
+
+    result = import_statement(_load("cgd_sample.txt"), source_file="cgd_sample.pdf")
+
+    # The "EXAMPLE INSURANCE" debit in the fixture is dropped before insert
+    assert not Transaction.objects.filter(description__icontains="EXAMPLE INSURANCE").exists()
+    assert result.ignored >= 1
+
+
+@pytest.mark.django_db
+def test_seed_finance_creates_ignore_rules(tmp_path):
+    """
+    The seed command turns "ignore" entries into IgnoreRule rows and updates them in place.
+
+    Args:
+        tmp_path (pathlib.Path): A temporary directory provided by pytest
+
+    Returns:
+        None
+    """
+
+    import json
+
+    seed_first = {
+        "categories": [],
+        "rules": [],
+        "ignore": [{"match_text": "NOISY", "note": "first"}],
+    }
+    seed_second = {
+        "categories": [],
+        "rules": [],
+        "ignore": [{"match_text": "NOISY", "note": "second"}],
+    }
+
+    first_path = tmp_path / "first.json"
+    second_path = tmp_path / "second.json"
+    first_path.write_text(json.dumps(seed_first))
+    second_path.write_text(json.dumps(seed_second))
+
+    call_command("seed_finance", file=str(first_path))
+    assert IgnoreRule.objects.filter(match_text="NOISY").count() == 1
+    assert IgnoreRule.objects.get(match_text="NOISY").note == "first"
+
+    call_command("seed_finance", file=str(second_path))
+    # Still exactly one row; the note moved to the new value
+    assert IgnoreRule.objects.filter(match_text="NOISY").count() == 1
+    assert IgnoreRule.objects.get(match_text="NOISY").note == "second"
 
 
 @pytest.mark.django_db

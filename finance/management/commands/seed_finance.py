@@ -8,7 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from finance.models import Category, CategoryRule
+from finance.models import Category, CategoryRule, IgnoreRule
 
 
 def _resolve_path(given):
@@ -112,9 +112,25 @@ class Command(BaseCommand):
             else:
                 updated += 1
 
+        # Importer ignore patterns (match_text is the natural key). The note is
+        # advisory; updating it on a known pattern is fine, but we never drop
+        # rows the user added manually.
+        ignored_created = 0
+        ignored_updated = 0
+        for entry in data.get("ignore", []):
+            _, was_created = IgnoreRule.objects.update_or_create(
+                match_text=entry["match_text"],
+                defaults={"note": entry.get("note", "")},
+            )
+            if was_created:
+                ignored_created += 1
+            else:
+                ignored_updated += 1
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Seeded {len(categories)} categories, {created} new rules and "
-                f"{updated} updated rules from {path.name}."
+                f"{updated} updated rules, {ignored_created} new ignore patterns "
+                f"and {ignored_updated} updated ignore patterns from {path.name}."
             )
         )

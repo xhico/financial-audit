@@ -12,5 +12,8 @@
     {"match_text": "EXAMPLE BROKER", "sign": "any", "scope": "", "category": "Investment", "priority": 20},
     {"match_text": "EXAMPLE MORTGAGE", "sign": "debit", "scope": "personal", "category": "Mortgage", "priority": 30},
     {"match_text": "EXAMPLE UTILITY", "sign": "debit", "scope": "", "category": "Utilities", "priority": 40}
+  ],
+  "ignore": [
+    {"match_text": "EXAMPLE BROKER MIRROR", "note": "Skip the bank-side mirror of a movement tracked through another import path"}
   ]
 }
