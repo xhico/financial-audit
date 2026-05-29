@@ -410,13 +410,42 @@ def _compute_net_worth_series():
     house_accounts = list(Account.objects.filter(role=Account.Role.HOUSE).exclude(kind=Account.Kind.BROKERAGE))
     personal_accounts = list(Account.objects.filter(role=Account.Role.PERSONAL).exclude(kind=Account.Kind.BROKERAGE))
     business_accounts = list(Account.objects.filter(role=Account.Role.BUSINESS).exclude(kind=Account.Kind.BROKERAGE))
+    # Brokerage accounts contribute via their manually-recorded portfolio
+    # snapshots: for each as_of we use the latest PortfolioSnapshot on or
+    # before that date, per account, summed across accounts.
+    brokerage_accounts = list(Account.objects.filter(kind=Account.Kind.BROKERAGE))
+
+    def _brokerage_value_at(on_date):
+        total = 0.0
+        for account in brokerage_accounts:
+            snap = account.portfolio_snapshots.filter(as_of__lte=on_date).order_by("-as_of").first()
+            if snap:
+                total += float(snap.market_value)
+        return total
+
+    def _latest_balance_snapshot_at(on_date):
+        return BalanceSnapshot.objects.filter(as_of__lte=on_date).order_by("-as_of").first()
+
+    # Build the series over the union of every BalanceSnapshot and
+    # PortfolioSnapshot date, so a broker value recorded later than the last
+    # bank statement still produces a row at its own as_of.
+    bank_dates = set(BalanceSnapshot.objects.values_list("as_of", flat=True))
+    broker_dates = set(PortfolioSnapshot.objects.values_list("as_of", flat=True))
+    timeline = sorted(bank_dates | broker_dates)
 
     series = []
-    for snap in BalanceSnapshot.objects.order_by("as_of"):
-        as_of = snap.as_of
-        savings = float(snap.savings_total or 0)
-        investments = float(snap.investments_total or 0)
-        mortgage = float(snap.mortgage_balance or 0)
+    for as_of in timeline:
+        # For dates that fall on a BalanceSnapshot we read its summary fields
+        # directly; for broker-only dates we forward-fill the latest known
+        # BalanceSnapshot so savings / mortgage don't drop to zero.
+        bank_snap = _latest_balance_snapshot_at(as_of)
+        savings = float(bank_snap.savings_total or 0) if bank_snap else 0.0
+        mortgage = float(bank_snap.mortgage_balance or 0) if bank_snap else 0.0
+        bank_investments = float(bank_snap.investments_total or 0) if bank_snap else 0.0
+
+        # Investments combine any bank-side "Instrumentos financeiros" total
+        # with the broker's most-recent recorded portfolio value
+        investments = bank_investments + _brokerage_value_at(as_of)
 
         house_current = sum(_account_balance_at(a, as_of) for a in house_accounts)
         personal_current = sum(_account_balance_at(a, as_of) for a in personal_accounts)

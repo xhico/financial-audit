@@ -181,6 +181,61 @@ def test_net_worth_endpoint_from_snapshot(api_client):
 
 
 @pytest.mark.django_db
+def test_net_worth_includes_latest_portfolio_snapshot(api_client):
+    """
+    A manually-recorded PortfolioSnapshot on or before a BalanceSnapshot's
+    as_of date contributes to the investments figure and the net-worth total.
+
+    Args:
+        api_client (APIClient): Authenticated client fixture
+
+    Returns:
+        None
+    """
+
+    from finance.models import Account, PortfolioSnapshot
+
+    broker = Account.objects.create(
+        name="Broker",
+        bank="Broker",
+        iban="BROKERIBAN",
+        scope="personal",
+        role=Account.Role.PERSONAL,
+        kind=Account.Kind.BROKERAGE,
+    )
+    # Two snapshots: only the latest <= as_of should count
+    PortfolioSnapshot.objects.create(account=broker, as_of=date(2026, 3, 31), market_value=Decimal("80.00"))
+    PortfolioSnapshot.objects.create(account=broker, as_of=date(2026, 4, 30), market_value=Decimal("123.45"))
+    # A future snapshot should not leak into earlier net-worth entries
+    PortfolioSnapshot.objects.create(account=broker, as_of=date(2026, 6, 30), market_value=Decimal("999.99"))
+
+    statement = StatementImport.objects.create(bank="cgd", scope="personal", period_end=date(2026, 4, 30))
+    BalanceSnapshot.objects.create(
+        statement=statement,
+        as_of=date(2026, 4, 30),
+        current_total=Decimal("0.00"),
+        savings_total=Decimal("0.00"),
+        investments_total=Decimal("0.00"),
+        mortgage_balance=Decimal("0.00"),
+    )
+
+    response = api_client.get("/api/dashboard/net-worth/")
+
+    assert response.status_code == 200
+    # The timeline is the union of bank + broker snapshot dates, so each
+    # portfolio snapshot date now produces its own row.
+    by_date = {entry["as_of"]: entry for entry in response.data}
+    # On the bank-statement date the latest broker snapshot <= that date is
+    # the 123.45 row, so investments and net worth pick that figure up.
+    assert by_date["2026-04-30"]["investments"] == 123.45
+    assert by_date["2026-04-30"]["net_worth"] == 123.45
+    # The 80.00 snapshot is the only broker value visible on its own date
+    assert by_date["2026-03-31"]["investments"] == 80.0
+    # A later broker-only date forward-fills the bank fields and uses 999.99
+    assert by_date["2026-06-30"]["investments"] == 999.99
+
+
+@pytest.mark.django_db
 def test_dashboard_requires_authentication():
     """
     The dashboard endpoints reject anonymous requests.
