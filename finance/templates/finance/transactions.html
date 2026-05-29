@@ -97,13 +97,12 @@
           <input type="checkbox" name="apply_to_similar" class="w-4 h-4 accent-indigo-600">
           <span>Also apply to similar uncategorised</span>
         </label>
-        <div class="mt-2 grid grid-cols-3 gap-2 items-end">
-          <label class="filter-field col-span-2">Match text
-            <input name="match_text" type="text" autocomplete="off">
-          </label>
-          <div class="text-xs text-zinc-500 pb-1.5" id="match-count">—</div>
-        </div>
+        <label class="filter-field mt-2">Match text
+          <input name="match_text" type="text" autocomplete="off">
+        </label>
         <div class="text-xs text-zinc-500 mt-1">Case-insensitive substring of the description; same matching rule the auto-classifier uses.</div>
+        <div id="match-status" class="text-xs text-zinc-500 mt-2">—</div>
+        <ul id="match-preview" class="mt-1 grid gap-1 max-h-40 overflow-y-auto text-xs"></ul>
       </div>
 
       <div id="edit-error" class="text-sm text-rose-600 hidden"></div>
@@ -170,28 +169,59 @@
     document.getElementById("edit-modal").classList.add("flex");
   }
 
-  // Debounced live count of how many uncategorised rows match the input
+  // Debounced live preview of uncategorised rows matching the input. Shows
+  // up to PREVIEW_LIMIT rows with a "and N more" tail so the user can see
+  // exactly what the bulk apply is about to touch before ticking the box.
+  const PREVIEW_LIMIT = 10;
   let matchCountTimer = null;
   async function refreshMatchCount() {
-    const input = document.querySelector("#edit-form input[name='match_text']");
-    const label = document.getElementById("match-count");
-    const text  = input.value.trim();
-    if (!text) { label.textContent = ""; return; }
-    label.textContent = "counting…";
+    const input  = document.querySelector("#edit-form input[name='match_text']");
+    const status = document.getElementById("match-status");
+    const list   = document.getElementById("match-preview");
+    const text   = input.value.trim();
+    if (!text) { status.textContent = ""; list.innerHTML = ""; return; }
+    status.textContent = "Searching…";
+    list.innerHTML = "";
     clearTimeout(matchCountTimer);
     matchCountTimer = setTimeout(async () => {
       try {
-        const params = new URLSearchParams({ q: text, uncategorised: "1", page_size: "1" });
+        const params = new URLSearchParams({
+          q: text,
+          uncategorised: "1",
+          page_size: String(PREVIEW_LIMIT + 1),
+        });
         const data = await window.dashboard.fetchJson("/api/transactions/?" + params.toString());
-        const n = data.count;
-        // Subtract one to discount the row the user is currently editing, but
-        // only when it itself matches the text and is currently uncategorised
-        const editing = window.txnsById[document.querySelector("#edit-form input[name='id']").value];
-        const editingMatches = editing && !editing.category && editing.description.toLowerCase().includes(text.toLowerCase());
-        const others = Math.max(0, n - (editingMatches ? 1 : 0));
-        label.textContent = `${others} other uncategorised`;
+        // Discount the row currently being edited so the count reflects "other"
+        // matches that the bulk apply would actually touch
+        const editingId = parseInt(document.querySelector("#edit-form input[name='id']").value, 10);
+        const editing   = window.txnsById[editingId];
+        const editingMatches = editing && !editing.category &&
+          editing.description.toLowerCase().includes(text.toLowerCase());
+        const totalOthers = Math.max(0, data.count - (editingMatches ? 1 : 0));
+        const rows = data.results.filter(r => r.id !== editingId).slice(0, PREVIEW_LIMIT);
+
+        if (totalOthers === 0) {
+          status.textContent = "No other uncategorised rows match.";
+          list.innerHTML = "";
+          return;
+        }
+        const more = totalOthers > rows.length ? ` (showing first ${rows.length})` : "";
+        status.textContent = `${totalOthers} other uncategorised${more}`;
+        const d = window.dashboard;
+        list.innerHTML = rows.map(r => {
+          const amt  = parseFloat(r.amount);
+          const desc = r.description.length > 60 ? r.description.slice(0, 60) + "…" : r.description;
+          const amtCls = amt >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+          return `
+            <li class="flex items-baseline justify-between gap-3 px-2 py-1 rounded bg-zinc-50 dark:bg-zinc-800/40">
+              <span class="text-zinc-500 whitespace-nowrap">${r.date}</span>
+              <span class="flex-1 truncate" title="${r.description.replace(/"/g, "&quot;")}">${desc}</span>
+              <span class="num tabular-nums ${amtCls}">${d.formatCurrency(amt, true)}</span>
+            </li>`;
+        }).join("");
       } catch (e) {
-        label.textContent = "—";
+        status.textContent = "Failed to search.";
+        list.innerHTML = "";
       }
     }, 200);
   }
