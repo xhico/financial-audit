@@ -16,6 +16,7 @@ from finance.api import (
     OverviewView,
     PortfolioSnapshotView,
     ResetView,
+    SeedView,
     TransactionDetailView,
     TransactionListView,
     UploadView,
@@ -42,4 +43,5 @@ urlpatterns = [
     path("upload/", UploadView.as_view(), name="upload"),
     path("portfolio-snapshots/", PortfolioSnapshotView.as_view(), name="portfolio-snapshots"),
     path("reset/", ResetView.as_view(), name="reset"),
+    path("seed/", SeedView.as_view(), name="seed"),
 ]

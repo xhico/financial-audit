@@ -60,6 +60,7 @@
       <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
       <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
       <a href="{% url 'pages:upload' %}"       class="{% if request.resolver_match.url_name == 'upload' %}is-active{% endif %}">Upload</a>
+      <a href="{% url 'pages:seed' %}"         class="{% if request.resolver_match.url_name == 'seed' %}is-active{% endif %}">Seed</a>
     </nav>
 
     <div class="sidebar-footer">

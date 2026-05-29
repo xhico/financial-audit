@@ -320,3 +320,114 @@ def classify_transactions(transactions=None):
                     updated += 1
                 break
     return updated
+
+
+@transaction.atomic
+def apply_seed(data):
+    """
+    Apply a seed payload to the Category, CategoryRule and IgnoreRule tables.
+
+    Shared between the seed_finance management command and the /api/seed/
+    endpoint so the CLI and the browser write through the same code path.
+    Idempotent: existing categories are reused; rules and ignore patterns
+    are upserted on their natural keys so re-applying the same payload is
+    a no-op.
+
+    Args:
+        data (dict): Parsed JSON with optional "categories", "rules" and
+            "ignore" arrays. Shape mirrors seed_rules.json.
+
+    Returns:
+        dict: Summary counts {categories, rules_created, rules_updated,
+        ignore_created, ignore_updated}
+
+    Raises:
+        Category.DoesNotExist: When a rule names a category that wasn't
+            seeded and doesn't already exist
+        KeyError: When a rule or ignore entry is missing a required field
+    """
+
+    categories = {}
+    for entry in data.get("categories", []):
+        category, _ = Category.objects.get_or_create(
+            name=entry["name"], defaults={"kind": entry.get("kind", Category.Kind.EXPENSE)}
+        )
+        categories[entry["name"]] = category
+
+    rules_created = 0
+    rules_updated = 0
+    for entry in data.get("rules", []):
+        category = categories.get(entry["category"]) or Category.objects.get(name=entry["category"])
+        # Treat (match_text, sign, scope, effective_from) as the natural key.
+        # Editing the category for an existing match in the seed file then
+        # updates the rule in place instead of inserting a duplicate that
+        # would compete with the old one at classify time.
+        _, was_created = CategoryRule.objects.update_or_create(
+            match_text=entry["match_text"],
+            sign=entry.get("sign", CategoryRule.Sign.ANY),
+            scope=entry.get("scope", ""),
+            effective_from=entry.get("effective_from") or None,
+            defaults={
+                "category": category,
+                "priority": entry.get("priority", 100),
+            },
+        )
+        if was_created:
+            rules_created += 1
+        else:
+            rules_updated += 1
+
+    # Importer ignore patterns (match_text is the natural key). The note is
+    # advisory; we never drop patterns the user added through other channels.
+    ignore_created = 0
+    ignore_updated = 0
+    for entry in data.get("ignore", []):
+        _, was_created = IgnoreRule.objects.update_or_create(
+            match_text=entry["match_text"],
+            defaults={"note": entry.get("note", "")},
+        )
+        if was_created:
+            ignore_created += 1
+        else:
+            ignore_updated += 1
+
+    return {
+        "categories": len(categories),
+        "rules_created": rules_created,
+        "rules_updated": rules_updated,
+        "ignore_created": ignore_created,
+        "ignore_updated": ignore_updated,
+    }
+
+
+def dump_seed():
+    """
+    Snapshot the current Category, CategoryRule and IgnoreRule rows as the
+    payload a seed file would carry.
+
+    The shape mirrors seed_rules.json so the export can be re-applied via
+    apply_seed without any transformation. Useful for backing up the
+    current config or for downloading the live state from the dashboard.
+
+    Args:
+        None
+
+    Returns:
+        dict: {"categories": [...], "rules": [...], "ignore": [...]}
+    """
+
+    categories = [{"name": c.name, "kind": c.kind} for c in Category.objects.order_by("name")]
+    rules = []
+    for r in CategoryRule.objects.select_related("category").order_by("priority", "match_text"):
+        entry = {
+            "match_text": r.match_text,
+            "sign": r.sign,
+            "scope": r.scope,
+            "category": r.category.name,
+            "priority": r.priority,
+        }
+        if r.effective_from:
+            entry["effective_from"] = r.effective_from.isoformat()
+        rules.append(entry)
+    ignore = [{"match_text": i.match_text, "note": i.note} for i in IgnoreRule.objects.order_by("match_text")]
+    return {"categories": categories, "rules": rules, "ignore": ignore}

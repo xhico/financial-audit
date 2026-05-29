@@ -146,3 +146,22 @@ def upload(request):
     """
 
     return render(request, "finance/upload.html")
+
+
+@login_required
+def seed(request):
+    """
+    Render the seed-configuration page.
+
+    The page lets the user download a JSON snapshot of the current
+    categories, rules and ignore patterns, and upload a replacement that
+    is applied via the same code path as the seed_finance command.
+
+    Args:
+        request (HttpRequest): The incoming request
+
+    Returns:
+        HttpResponse: The rendered seed page
+    """
+
+    return render(request, "finance/seed.html")

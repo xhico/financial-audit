@@ -7,6 +7,7 @@ These aggregate the imported data for the dashboards: income, expenses,
 cashflow, accounts, balance snapshots and a filterable transactions list.
 """
 
+import json
 import tempfile
 from datetime import date
 
@@ -35,7 +36,7 @@ from finance.serializers import (
     PortfolioSnapshotSerializer,
     TransactionSerializer,
 )
-from finance.services import import_degiro_csv, import_statement
+from finance.services import apply_seed, dump_seed, import_degiro_csv, import_statement
 
 
 def _quarter(month):
@@ -693,6 +694,74 @@ class TransactionDetailView(RetrieveUpdateAPIView):
 
     queryset = Transaction.objects.select_related("account", "category")
     serializer_class = TransactionSerializer
+
+
+class SeedView(APIView):
+    """
+    Inspect or replace the active seed configuration.
+
+    - GET dumps the current Categories, CategoryRules and IgnoreRules in the
+      same shape as seed_rules.json so the user can download a backup
+    - POST accepts a JSON body OR a file upload named "file" and applies it
+      via the shared apply_seed service
+    """
+
+    # Accept multipart so the frontend can post a file picker upload, plus
+    # the default JSON parser for raw bodies
+    parser_classes = [MultiPartParser, *APIView.parser_classes]
+
+    def get(self, request):
+        """
+        Return the live seed configuration as JSON.
+
+        Args:
+            request (Request): The incoming request
+
+        Returns:
+            Response: {"categories": [...], "rules": [...], "ignore": [...]}
+        """
+
+        return Response(dump_seed())
+
+    def post(self, request):
+        """
+        Apply a new seed payload and return upsert counts.
+
+        Args:
+            request (Request): JSON body or multipart upload. The payload
+                shape matches seed_rules.json: optional categories / rules /
+                ignore arrays.
+
+        Returns:
+            Response: Summary counts from apply_seed; 400 on bad JSON or
+            a missing referenced category.
+        """
+
+        # Prefer the uploaded file when present so file-picker submissions
+        # work; fall back to the raw JSON body for direct API calls
+        uploaded = request.FILES.get("file")
+        if uploaded is not None:
+            try:
+                raw = uploaded.read().decode("utf-8")
+            except UnicodeDecodeError as exc:
+                return Response({"error": f"File is not UTF-8: {exc}"}, status=400)
+            try:
+                data = json.loads(raw)
+            except json.JSONDecodeError as exc:
+                return Response({"error": f"Invalid JSON: {exc.msg} at line {exc.lineno}"}, status=400)
+        else:
+            data = request.data
+            if not isinstance(data, dict):
+                return Response({"error": "Body must be a JSON object"}, status=400)
+
+        try:
+            result = apply_seed(data)
+        except Category.DoesNotExist as exc:
+            # apply_seed raises when a rule names an unknown category
+            return Response({"error": f"Unknown category referenced by a rule: {exc}"}, status=400)
+        except KeyError as exc:
+            return Response({"error": f"Missing required field: {exc}"}, status=400)
+        return Response(result)
 
 
 class CategoriseMatchingView(APIView):

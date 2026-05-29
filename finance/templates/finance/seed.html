@@ -1,0 +1,177 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Seed{% endblock %}
+
+{% block content %}
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Seed rules</h1>
+    <p class="text-sm text-zinc-500 mt-1">Categories, classification rules and ignore patterns. Same JSON shape as seed_rules.json; same upsert behaviour as the seed_finance command.</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-12 gap-3">
+
+  <div class="tile col-span-6 md:col-span-3">
+    <div class="tile-label">Categories</div>
+    <div class="stat-num" id="kpi-categories">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-3">
+    <div class="tile-label">Category rules</div>
+    <div class="stat-num" id="kpi-rules">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-3">
+    <div class="tile-label">Ignore patterns</div>
+    <div class="stat-num" id="kpi-ignore">—</div>
+  </div>
+  <div class="tile col-span-6 md:col-span-3 flex flex-col items-start">
+    <div class="tile-label">Download</div>
+    <button type="button" id="download-btn" class="btn-ghost mt-2">seed_rules.json</button>
+  </div>
+
+  <div class="tile col-span-12">
+    <form id="upload-form">
+      <label for="file-input"
+             id="drop-zone"
+             class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl py-10 px-6 cursor-pointer transition hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-400"><path d="M12 13v8"/><path d="M5 21h14"/><path d="m17 8-5-5-5 5"/><path d="M12 3v14"/></svg>
+        <div class="font-medium text-zinc-700 dark:text-zinc-200">Drop seed_rules.json, or click to pick</div>
+        <div class="text-xs text-zinc-500">Idempotent: re-uploading the same file is a no-op.</div>
+        <input type="file" id="file-input" name="file" accept=".json,application/json" class="hidden">
+      </label>
+      <div class="mt-4 flex items-center justify-between gap-3">
+        <div class="text-sm text-zinc-500" id="staged-name">—</div>
+        <button type="submit" id="upload-btn" class="btn-primary" disabled>Apply seed</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="tile col-span-12" id="results-tile" hidden>
+    <div class="tile-label mb-3">Result</div>
+    <div id="results" class="text-sm grid gap-1"></div>
+  </div>
+
+  <div class="tile col-span-12">
+    <details>
+      <summary class="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-200">Current configuration (preview)</summary>
+      <pre id="seed-preview" class="mt-3 text-xs max-h-96 overflow-auto bg-zinc-50 dark:bg-zinc-800/40 rounded-md p-3 font-mono leading-tight">loading…</pre>
+    </details>
+  </div>
+
+</div>
+
+<script>
+  const fileInput   = document.getElementById("file-input");
+  const dropZone    = document.getElementById("drop-zone");
+  const stagedName  = document.getElementById("staged-name");
+  const uploadBtn   = document.getElementById("upload-btn");
+  const downloadBtn = document.getElementById("download-btn");
+  const resultsTile = document.getElementById("results-tile");
+  const resultsEl   = document.getElementById("results");
+  const previewEl   = document.getElementById("seed-preview");
+
+  let staged = null;
+
+  function csrfToken() {
+    return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+  }
+
+  async function refreshSummary() {
+    try {
+      const data = await window.dashboard.fetchJson("/api/seed/");
+      document.getElementById("kpi-categories").textContent = data.categories.length;
+      document.getElementById("kpi-rules").textContent      = data.rules.length;
+      document.getElementById("kpi-ignore").textContent     = data.ignore.length;
+      previewEl.textContent = JSON.stringify(data, null, 2);
+    } catch (e) {
+      previewEl.textContent = "Failed to load current configuration: " + e.message;
+    }
+  }
+
+  downloadBtn.addEventListener("click", async () => {
+    try {
+      // Hit the live endpoint so the download always matches what the app
+      // would dump right now, not a cached preview
+      const resp = await fetch("/api/seed/", { credentials: "same-origin" });
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "seed_rules.json";
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Download failed: " + e.message);
+    }
+  });
+
+  function stage(file) {
+    if (!file) { staged = null; stagedName.textContent = "—"; uploadBtn.disabled = true; return; }
+    if (!/\.json$/i.test(file.name)) {
+      stagedName.textContent = "Only .json files are accepted";
+      staged = null;
+      uploadBtn.disabled = true;
+      return;
+    }
+    staged = file;
+    stagedName.textContent = `${file.name} · ${(file.size/1024).toFixed(1)} KB`;
+    uploadBtn.disabled = false;
+  }
+
+  fileInput.addEventListener("change", e => stage(e.target.files[0]));
+  ["dragenter", "dragover"].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropZone.classList.add("border-indigo-400", "bg-indigo-50/40", "dark:bg-indigo-900/10");
+  }));
+  ["dragleave", "drop"].forEach(ev => dropZone.addEventListener(ev, e => {
+    e.preventDefault();
+    dropZone.classList.remove("border-indigo-400", "bg-indigo-50/40", "dark:bg-indigo-900/10");
+  }));
+  dropZone.addEventListener("drop", e => {
+    if (e.dataTransfer && e.dataTransfer.files.length) stage(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById("upload-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!staged) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Applying…";
+    resultsTile.hidden = false;
+    resultsEl.innerHTML = `<div class="text-zinc-500">Applying ${staged.name}…</div>`;
+
+    const formData = new FormData();
+    formData.append("file", staged);
+    try {
+      const resp = await fetch("/api/seed/", {
+        method: "POST",
+        body: formData,
+        headers: { "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        resultsEl.innerHTML = `<div class="text-rose-600">${data.error || `HTTP ${resp.status}`}</div>`;
+      } else {
+        resultsEl.innerHTML = `
+          <div class="text-emerald-700 dark:text-emerald-300 font-medium">Applied</div>
+          <div class="text-zinc-600 dark:text-zinc-300">
+            ${data.categories} categories · ${data.rules_created} new rules · ${data.rules_updated} updated rules ·
+            ${data.ignore_created} new ignore patterns · ${data.ignore_updated} updated ignore patterns
+          </div>`;
+        staged = null;
+        stagedName.textContent = "—";
+        fileInput.value = "";
+        await refreshSummary();
+      }
+    } catch (err) {
+      resultsEl.innerHTML = `<div class="text-rose-600">${err.message}</div>`;
+    } finally {
+      uploadBtn.disabled = staged === null;
+      uploadBtn.textContent = "Apply seed";
+    }
+  });
+
+  window.addEventListener("load", refreshSummary);
+</script>
+{% endblock %}

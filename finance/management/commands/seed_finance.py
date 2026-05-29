@@ -8,7 +8,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 
-from finance.models import Category, CategoryRule, IgnoreRule
+from finance.services import apply_seed
 
 
 def _resolve_path(given):
@@ -69,7 +69,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         """
-        Load the seed file and create its categories and rules.
+        Load the seed file and apply its categories, rules and ignore patterns.
 
         Args:
             args: Unused positional arguments
@@ -82,55 +82,15 @@ class Command(BaseCommand):
         path = _resolve_path(options["file"])
         data = json.loads(path.read_text(encoding="utf-8"))
 
-        categories = {}
-        for entry in data.get("categories", []):
-            category, _ = Category.objects.get_or_create(
-                name=entry["name"], defaults={"kind": entry.get("kind", Category.Kind.EXPENSE)}
-            )
-            categories[entry["name"]] = category
-
-        created = 0
-        updated = 0
-        for entry in data.get("rules", []):
-            category = categories.get(entry["category"]) or Category.objects.get(name=entry["category"])
-            # Treat (match_text, sign, scope) as the rule's natural key. Editing
-            # the category for an existing match in the seed file then updates
-            # the rule in place instead of inserting a duplicate that competes
-            # with the old one at classify time.
-            _, was_created = CategoryRule.objects.update_or_create(
-                match_text=entry["match_text"],
-                sign=entry.get("sign", CategoryRule.Sign.ANY),
-                scope=entry.get("scope", ""),
-                effective_from=entry.get("effective_from") or None,
-                defaults={
-                    "category": category,
-                    "priority": entry.get("priority", 100),
-                },
-            )
-            if was_created:
-                created += 1
-            else:
-                updated += 1
-
-        # Importer ignore patterns (match_text is the natural key). The note is
-        # advisory; updating it on a known pattern is fine, but we never drop
-        # rows the user added manually.
-        ignored_created = 0
-        ignored_updated = 0
-        for entry in data.get("ignore", []):
-            _, was_created = IgnoreRule.objects.update_or_create(
-                match_text=entry["match_text"],
-                defaults={"note": entry.get("note", "")},
-            )
-            if was_created:
-                ignored_created += 1
-            else:
-                ignored_updated += 1
+        # apply_seed lives in finance.services so the management command and
+        # the /api/seed/ endpoint share one upsert path
+        result = apply_seed(data)
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Seeded {len(categories)} categories, {created} new rules and "
-                f"{updated} updated rules, {ignored_created} new ignore patterns "
-                f"and {ignored_updated} updated ignore patterns from {path.name}."
+                f"Seeded {result['categories']} categories, "
+                f"{result['rules_created']} new rules and {result['rules_updated']} updated rules, "
+                f"{result['ignore_created']} new ignore patterns and "
+                f"{result['ignore_updated']} updated ignore patterns from {path.name}."
             )
         )

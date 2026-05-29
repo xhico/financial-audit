@@ -18,4 +18,5 @@ urlpatterns = [
     path("accounts/", views.accounts, name="accounts"),
     path("transactions/", views.transactions, name="transactions"),
     path("upload/", views.upload, name="upload"),
+    path("seed/", views.seed, name="seed"),
 ]

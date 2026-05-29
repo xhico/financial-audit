@@ -655,6 +655,151 @@ def test_upload_endpoint_rejects_empty_request(api_client):
 
 
 @pytest.mark.django_db
+def test_seed_get_returns_current_state(api_client, seeded):
+    """
+    GET /api/seed/ returns the live categories, rules and ignore patterns
+    in the same shape as seed_rules.json.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data; creates categories and rules
+
+    Returns:
+        None
+    """
+
+    response = api_client.get("/api/seed/")
+
+    assert response.status_code == 200
+    body = response.data
+    assert set(body) == {"categories", "rules", "ignore"}
+    cat_names = {c["name"] for c in body["categories"]}
+    assert {"Salary", "Groceries", "Tax"} <= cat_names
+    rule_matches = {r["match_text"] for r in body["rules"]}
+    assert {"ACME PAYROLL", "MARKET", "VAT PAY"} <= rule_matches
+
+
+@pytest.mark.django_db
+def test_seed_post_applies_payload_via_file_upload(api_client):
+    """
+    POST /api/seed/ with a JSON file applies categories, rules and ignore
+    patterns and reports upsert counts.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    import json as json_module
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    payload = {
+        "categories": [
+            {"name": "Salary", "kind": "income"},
+            {"name": "Online shopping", "kind": "expense"},
+        ],
+        "rules": [
+            {"match_text": "EXAMPLE", "sign": "any", "category": "Salary", "priority": 10},
+        ],
+        "ignore": [
+            {"match_text": "NOISE", "note": "test"},
+        ],
+    }
+    upload = SimpleUploadedFile(
+        "seed_rules.json", json_module.dumps(payload).encode("utf-8"), content_type="application/json"
+    )
+
+    response = api_client.post("/api/seed/", data={"file": upload}, format="multipart")
+
+    assert response.status_code == 200
+    assert response.data["rules_created"] == 1
+    assert response.data["ignore_created"] == 1
+    # Re-applying the same payload upserts in place
+    upload2 = SimpleUploadedFile(
+        "seed_rules.json", json_module.dumps(payload).encode("utf-8"), content_type="application/json"
+    )
+    response = api_client.post("/api/seed/", data={"file": upload2}, format="multipart")
+    assert response.status_code == 200
+    assert response.data["rules_created"] == 0
+    assert response.data["rules_updated"] == 1
+
+
+@pytest.mark.django_db
+def test_seed_post_accepts_json_body(api_client):
+    """
+    POST /api/seed/ also accepts a raw JSON body so the endpoint is usable
+    without a file upload.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.post(
+        "/api/seed/",
+        data={
+            "categories": [{"name": "Other income", "kind": "income"}],
+            "rules": [],
+            "ignore": [],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["categories"] >= 1
+
+
+@pytest.mark.django_db
+def test_seed_post_rejects_bad_json(api_client):
+    """
+    A malformed JSON file returns 400 with a readable error.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    upload = SimpleUploadedFile("bad.json", b"{ not valid json", content_type="application/json")
+    response = api_client.post("/api/seed/", data={"file": upload}, format="multipart")
+    assert response.status_code == 400
+    assert "Invalid JSON" in response.data["error"]
+
+
+@pytest.mark.django_db
+def test_seed_post_rejects_rule_with_unknown_category(api_client):
+    """
+    A rule referencing an unseeded category returns 400 rather than crashing.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.post(
+        "/api/seed/",
+        data={
+            "categories": [],
+            "rules": [{"match_text": "X", "category": "MissingCategory", "priority": 10}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "MissingCategory" in response.data["error"] or "Unknown category" in response.data["error"]
+
+
+@pytest.mark.django_db
 def test_categorise_matching_applies_to_every_uncategorised_match(api_client):
     """
     POST /api/transactions/categorise-matching/ categorises every uncategorised
