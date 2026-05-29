@@ -91,6 +91,21 @@
           <option value="">— Uncategorised —</option>
         </select>
       </label>
+
+      <div class="border-t border-zinc-200 dark:border-zinc-800 pt-3 mt-1">
+        <label class="flex items-center gap-2 text-sm font-medium text-zinc-700 dark:text-zinc-200">
+          <input type="checkbox" name="apply_to_similar" class="w-4 h-4 accent-indigo-600">
+          <span>Also apply to similar uncategorised</span>
+        </label>
+        <div class="mt-2 grid grid-cols-3 gap-2 items-end">
+          <label class="filter-field col-span-2">Match text
+            <input name="match_text" type="text" autocomplete="off">
+          </label>
+          <div class="text-xs text-zinc-500 pb-1.5" id="match-count">—</div>
+        </div>
+        <div class="text-xs text-zinc-500 mt-1">Case-insensitive substring of the description; same matching rule the auto-classifier uses.</div>
+      </div>
+
       <div id="edit-error" class="text-sm text-rose-600 hidden"></div>
       <div class="flex items-center justify-end gap-2 mt-2">
         <button type="button" id="edit-cancel" class="px-3 py-1.5 text-sm rounded-md text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">Cancel</button>
@@ -127,6 +142,16 @@
     select.innerHTML = html;
   }
 
+  function guessMatchText(description) {
+    // Strip common Portuguese bank prefixes and trailing reference numbers
+    // so the default match text focuses on the vendor / payee.
+    let text = (description || "").toUpperCase();
+    text = text.replace(/^(COMPRA|COMPRAS|TRF|TFI|TRANSFERENCIA|TRANSFER|PAG\.|PAGAMENTO|DEB(\.|ITO)?|CRED(\.|ITO)?|MBWAY|MB WAY)\b\s*/i, "");
+    // Drop trailing numeric or date-looking tokens
+    text = text.replace(/\s+\d[\d/\-:.\s]*$/g, "");
+    return text.trim().slice(0, 40);
+  }
+
   function openEdit(t) {
     const form = document.getElementById("edit-form");
     form.elements.id.value          = t.id;
@@ -135,10 +160,44 @@
     form.elements.amount.value      = t.amount;
     form.elements.balance.value     = t.balance ?? "";
     form.elements.category_id.value = t.category ? t.category.id : "";
+    // Pre-fill the bulk-apply fields: guess at a useful substring, leave
+    // the checkbox unchecked so saving without ticking doesn't surprise.
+    form.elements.match_text.value  = guessMatchText(t.description);
+    form.elements.apply_to_similar.checked = false;
+    refreshMatchCount();
     document.getElementById("edit-error").classList.add("hidden");
     document.getElementById("edit-modal").classList.remove("hidden");
     document.getElementById("edit-modal").classList.add("flex");
   }
+
+  // Debounced live count of how many uncategorised rows match the input
+  let matchCountTimer = null;
+  async function refreshMatchCount() {
+    const input = document.querySelector("#edit-form input[name='match_text']");
+    const label = document.getElementById("match-count");
+    const text  = input.value.trim();
+    if (!text) { label.textContent = ""; return; }
+    label.textContent = "counting…";
+    clearTimeout(matchCountTimer);
+    matchCountTimer = setTimeout(async () => {
+      try {
+        const params = new URLSearchParams({ q: text, uncategorised: "1", page_size: "1" });
+        const data = await window.dashboard.fetchJson("/api/transactions/?" + params.toString());
+        const n = data.count;
+        // Subtract one to discount the row the user is currently editing, but
+        // only when it itself matches the text and is currently uncategorised
+        const editing = window.txnsById[document.querySelector("#edit-form input[name='id']").value];
+        const editingMatches = editing && !editing.category && editing.description.toLowerCase().includes(text.toLowerCase());
+        const others = Math.max(0, n - (editingMatches ? 1 : 0));
+        label.textContent = `${others} other uncategorised`;
+      } catch (e) {
+        label.textContent = "—";
+      }
+    }, 200);
+  }
+  document.addEventListener("input", e => {
+    if (e.target && e.target.name === "match_text") refreshMatchCount();
+  });
 
   function closeEdit() {
     document.getElementById("edit-modal").classList.add("hidden");
@@ -156,12 +215,15 @@
     e.preventDefault();
     const form = e.currentTarget;
     const id = form.elements.id.value;
+    const categoryValue = form.elements.category_id.value === ""
+      ? null
+      : parseInt(form.elements.category_id.value, 10);
     const payload = {
       date: form.elements.date.value,
       description: form.elements.description.value,
       amount: form.elements.amount.value,
       balance: form.elements.balance.value === "" ? null : form.elements.balance.value,
-      category_id: form.elements.category_id.value === "" ? null : parseInt(form.elements.category_id.value, 10),
+      category_id: categoryValue,
     };
     const err = document.getElementById("edit-error");
     err.classList.add("hidden");
@@ -178,6 +240,30 @@
         err.classList.remove("hidden");
         return;
       }
+
+      // Optional second hop: apply the same category to every other
+      // uncategorised row whose description matches the substring.
+      const applySimilar = form.elements.apply_to_similar.checked;
+      const matchText    = form.elements.match_text.value.trim();
+      if (applySimilar && matchText) {
+        const bulkResp = await fetch("/api/transactions/categorise-matching/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+          credentials: "same-origin",
+          body: JSON.stringify({
+            match_text: matchText,
+            category_id: categoryValue,
+            only_uncategorised: true,
+          }),
+        });
+        if (!bulkResp.ok) {
+          const data = await bulkResp.json().catch(() => ({}));
+          err.textContent = data.error || `Bulk apply failed: HTTP ${bulkResp.status}`;
+          err.classList.remove("hidden");
+          return;
+        }
+      }
+
       closeEdit();
       window.loadTxns(window.currentPage);
     } catch (e) {

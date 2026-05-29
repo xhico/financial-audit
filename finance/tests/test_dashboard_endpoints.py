@@ -655,6 +655,90 @@ def test_upload_endpoint_rejects_empty_request(api_client):
 
 
 @pytest.mark.django_db
+def test_categorise_matching_applies_to_every_uncategorised_match(api_client):
+    """
+    POST /api/transactions/categorise-matching/ categorises every uncategorised
+    transaction whose description contains the match text, leaving already
+    classified rows untouched.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    account = Account.objects.create(name="House", bank="Bank", iban="PT50000000000000000000030", scope="personal")
+    shopping = Category.objects.create(name="Online shopping", kind=Category.Kind.EXPENSE)
+    existing = Category.objects.create(name="Other", kind=Category.Kind.EXPENSE)
+
+    a = Transaction.objects.create(
+        account=account, date=date(2026, 5, 1), description="COMPRA VENDORX 1", amount=Decimal("-10.00")
+    )
+    b = Transaction.objects.create(
+        account=account, date=date(2026, 5, 2), description="COMPRA vendorx 2", amount=Decimal("-12.00")
+    )
+    # Already categorised: must NOT be touched when only_uncategorised is true
+    c = Transaction.objects.create(
+        account=account,
+        date=date(2026, 5, 3),
+        description="COMPRA VENDORX 3",
+        amount=Decimal("-8.00"),
+        category=existing,
+    )
+    # Different description: must NOT match
+    d = Transaction.objects.create(
+        account=account, date=date(2026, 5, 4), description="COMPRA OTHER", amount=Decimal("-5.00")
+    )
+
+    response = api_client.post(
+        "/api/transactions/categorise-matching/",
+        data={"match_text": "vendorx", "category_id": shopping.id},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["updated"] == 2
+    a.refresh_from_db()
+    b.refresh_from_db()
+    c.refresh_from_db()
+    d.refresh_from_db()
+    assert a.category_id == shopping.id
+    assert b.category_id == shopping.id
+    # Already categorised row stays as-is
+    assert c.category_id == existing.id
+    # Non-matching row stays uncategorised
+    assert d.category is None
+
+
+@pytest.mark.django_db
+def test_categorise_matching_validates_inputs(api_client):
+    """
+    Empty match_text returns 400; unknown category_id returns 400.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.post(
+        "/api/transactions/categorise-matching/",
+        data={"match_text": "", "category_id": None},
+        format="json",
+    )
+    assert response.status_code == 400
+
+    response = api_client.post(
+        "/api/transactions/categorise-matching/",
+        data={"match_text": "vendor", "category_id": 99999},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_reset_endpoint_wipes_data_and_keeps_configuration(api_client, seeded):
     """
     POST /api/reset/ with the confirm token deletes every imported record

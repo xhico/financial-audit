@@ -695,6 +695,50 @@ class TransactionDetailView(RetrieveUpdateAPIView):
     serializer_class = TransactionSerializer
 
 
+class CategoriseMatchingView(APIView):
+    """
+    Bulk-categorise every uncategorised transaction matching a description.
+
+    - Lets the user click "edit" on one row, pick a category, and apply it
+      to every other uncategorised row with a similar description in one go
+    - The match is the same case-insensitive substring rule the
+      CategoryRule engine uses, so the behaviour mirrors auto-classification
+    """
+
+    def post(self, request):
+        """
+        Apply the chosen category to every uncategorised match.
+
+        Args:
+            request (Request): JSON body with:
+                match_text (str): Case-insensitive substring of description.
+                category_id (int | None): Target category; null detaches it.
+                only_uncategorised (bool): Default True. When False, also
+                    overwrites any existing category on a matching row.
+
+        Returns:
+            Response: {"updated": int} count of rows that changed
+        """
+
+        match_text = (request.data or {}).get("match_text", "").strip()
+        if not match_text:
+            return Response({"error": "match_text is required"}, status=400)
+
+        # Look up the category up-front so a bad id returns a clean 400
+        category_id = (request.data or {}).get("category_id")
+        if category_id is not None:
+            if not Category.objects.filter(pk=category_id).exists():
+                return Response({"error": f"Unknown category_id {category_id!r}"}, status=400)
+
+        only_uncategorised = (request.data or {}).get("only_uncategorised", True)
+
+        qs = Transaction.objects.filter(description__icontains=match_text)
+        if only_uncategorised:
+            qs = qs.filter(category__isnull=True)
+        updated = qs.update(category_id=category_id)
+        return Response({"updated": updated})
+
+
 class CategoryListView(ListAPIView):
     """
     Flat list of categories for the edit dropdown.
