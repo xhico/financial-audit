@@ -54,6 +54,7 @@
         <a href="{% url 'pages:investments' %}"  class="{% if request.resolver_match.url_name == 'investments' %}is-active{% endif %}">Investments</a>
         <a href="{% url 'pages:accounts' %}"     class="{% if request.resolver_match.url_name == 'accounts' %}is-active{% endif %}">Accounts</a>
         <a href="{% url 'pages:transactions' %}" class="{% if request.resolver_match.url_name == 'transactions' %}is-active{% endif %}">Transactions</a>
+        <a href="{% url 'pages:upload' %}" class="{% if request.resolver_match.url_name == 'upload' %}is-active{% endif %}">Upload</a>
       </nav>
       <div class="flex items-center gap-2 shrink-0">
         <button type="button" class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">

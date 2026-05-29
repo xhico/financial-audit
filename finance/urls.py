@@ -7,12 +7,15 @@ from django.urls import path
 from finance.api import (
     AccountsView,
     CashflowView,
+    CategoryListView,
     ExpensesView,
     IncomeView,
     InvestmentsView,
     NetWorthView,
     OverviewView,
+    TransactionDetailView,
     TransactionListView,
+    UploadView,
 )
 
 app_name = "finance"
@@ -26,4 +29,7 @@ urlpatterns = [
     path("dashboard/investments/", InvestmentsView.as_view(), name="investments"),
     path("dashboard/accounts/", AccountsView.as_view(), name="accounts"),
     path("transactions/", TransactionListView.as_view(), name="transactions"),
+    path("transactions/<int:pk>/", TransactionDetailView.as_view(), name="transaction-detail"),
+    path("categories/", CategoryListView.as_view(), name="categories"),
+    path("upload/", UploadView.as_view(), name="upload"),
 ]

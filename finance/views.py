@@ -131,3 +131,18 @@ def transactions(request):
     """
 
     return render(request, "finance/transactions.html")
+
+
+@login_required
+def upload(request):
+    """
+    Render the file-upload page used to import statements via the browser.
+
+    Args:
+        request (HttpRequest): The incoming request
+
+    Returns:
+        HttpResponse: The rendered upload page
+    """
+
+    return render(request, "finance/upload.html")

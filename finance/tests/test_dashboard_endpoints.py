@@ -419,6 +419,144 @@ def test_record_portfolio_value_command_upserts():
 
 
 @pytest.mark.django_db
+def test_categories_endpoint_lists_known_categories(api_client, seeded):
+    """
+    The categories endpoint returns a flat list with id, name and kind.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data
+
+    Returns:
+        None
+    """
+
+    response = api_client.get("/api/categories/")
+
+    assert response.status_code == 200
+    names = {row["name"] for row in response.data}
+    assert {"Salary", "Groceries", "Tax"} <= names
+    # Every row carries the three brief fields the edit dropdown needs
+    assert all(set(row) == {"id", "name", "kind"} for row in response.data)
+
+
+@pytest.mark.django_db
+def test_transaction_patch_updates_category_and_description(api_client, seeded):
+    """
+    PATCH /api/transactions/<id>/ updates the category, description and amount.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data
+
+    Returns:
+        None
+    """
+
+    txn = Transaction.objects.filter(description="ACME PAYROLL APR").first()
+    new_cat = Category.objects.create(name="Other income", kind=Category.Kind.INCOME)
+
+    response = api_client.patch(
+        f"/api/transactions/{txn.id}/",
+        data={"category_id": new_cat.id, "description": "Adjusted description", "amount": "1234.56"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    txn.refresh_from_db()
+    assert txn.category_id == new_cat.id
+    assert txn.description == "Adjusted description"
+    assert txn.amount == Decimal("1234.56")
+    # The response embeds the category brief so the frontend can rerender
+    assert response.data["category"]["id"] == new_cat.id
+
+
+@pytest.mark.django_db
+def test_transaction_patch_can_clear_category(api_client, seeded):
+    """
+    Passing category_id=null detaches the category from the transaction.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data
+
+    Returns:
+        None
+    """
+
+    txn = Transaction.objects.filter(description="ACME PAYROLL APR").first()
+    assert txn.category is not None
+
+    response = api_client.patch(
+        f"/api/transactions/{txn.id}/",
+        data={"category_id": None},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    txn.refresh_from_db()
+    assert txn.category is None
+
+
+@pytest.mark.django_db
+def test_upload_endpoint_dispatches_pdf_and_csv(api_client):
+    """
+    POSTing a CGD-format text file (.pdf extension) and a Degiro CSV runs
+    each through its parser and returns a per-file result row.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    from io import BytesIO
+    from pathlib import Path
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    fixtures = Path(__file__).parent / "fixtures"
+    csv_bytes = (fixtures / "degiro_account_sample.csv").read_bytes()
+
+    response = api_client.post(
+        "/api/upload/",
+        data={
+            "files": [
+                SimpleUploadedFile("degiro.csv", csv_bytes, content_type="text/csv"),
+                SimpleUploadedFile("noise.txt", BytesIO(b"junk").read(), content_type="text/plain"),
+            ],
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 200
+    results = {r["file"]: r for r in response.data["results"]}
+    # The CSV was parsed by the Degiro importer
+    assert results["degiro.csv"]["type"] == "degiro_csv"
+    assert results["degiro.csv"]["created"] >= 1
+    # The unsupported extension is reported as an error rather than aborting
+    assert "error" in results["noise.txt"]
+
+
+@pytest.mark.django_db
+def test_upload_endpoint_rejects_empty_request(api_client):
+    """
+    POSTing with no files returns a 400 with a readable error message.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.post("/api/upload/", data={}, format="multipart")
+    assert response.status_code == 400
+    assert "No files" in response.data.get("error", "")
+
+
+@pytest.mark.django_db
 def test_transactions_list_requires_authentication():
     """
     The transactions list rejects anonymous requests.

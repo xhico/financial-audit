@@ -35,12 +35,22 @@ class TransactionSerializer(serializers.ModelSerializer):
     """
     Serializer for a single transaction, with embedded account and category.
 
-    - Used by the transactions list endpoint
-    - Embeds related rows so the frontend renders without extra requests
+    - Used by the transactions list endpoint and the detail PATCH endpoint
+    - Embeds the related account and category as read-only nested objects so
+      the frontend renders without extra requests
+    - Exposes category_id as the writable handle for changing the category
     """
 
     account = AccountBriefSerializer(read_only=True)
     category = CategoryBriefSerializer(read_only=True)
+    # Writable category by primary key; null clears the category
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category",
+        queryset=Category.objects.all(),
+        write_only=True,
+        allow_null=True,
+        required=False,
+    )
 
     class Meta:
         model = Transaction
@@ -53,5 +63,6 @@ class TransactionSerializer(serializers.ModelSerializer):
             "balance",
             "account",
             "category",
+            "category_id",
             "statement_id",
         )

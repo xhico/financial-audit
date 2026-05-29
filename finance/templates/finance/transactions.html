@@ -52,9 +52,10 @@
       <tr>
         <th>Date</th><th>Account</th><th>Description</th>
         <th>Category</th><th class="num">Amount</th><th class="num">Balance</th>
+        <th></th>
       </tr>
     </thead>
-    <tbody id="txn-tbody"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody>
+    <tbody id="txn-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
   </table>
   <div class="flex items-center justify-end gap-2 p-3 border-t border-zinc-100 bg-zinc-50/70">
     <button type="button" class="btn-ghost" id="prev-page" onclick="window.loadTxns(window.currentPage - 1)">‹ Prev</button>
@@ -62,8 +63,128 @@
   </div>
 </div>
 
+<!-- Edit modal: hidden until a row's "edit" button is clicked -->
+<div id="edit-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-900/60">
+  <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-md mx-4 p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Edit transaction</h2>
+      <button type="button" id="edit-close" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">✕</button>
+    </div>
+    <form id="edit-form" class="grid gap-3">
+      <input type="hidden" name="id">
+      <label class="filter-field">Date
+        <input name="date" type="date" required>
+      </label>
+      <label class="filter-field">Description
+        <input name="description" type="text" required>
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="filter-field">Amount
+          <input name="amount" type="number" step="0.01" required>
+        </label>
+        <label class="filter-field">Balance
+          <input name="balance" type="number" step="0.01">
+        </label>
+      </div>
+      <label class="filter-field">Category
+        <select name="category_id">
+          <option value="">— Uncategorised —</option>
+        </select>
+      </label>
+      <div id="edit-error" class="text-sm text-rose-600 hidden"></div>
+      <div class="flex items-center justify-end gap-2 mt-2">
+        <button type="button" id="edit-cancel" class="px-3 py-1.5 text-sm rounded-md text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   window.currentPage = 1;
+  window.categories = [];
+  window.txnsById = {};
+
+  function csrfToken() {
+    return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+  }
+
+  async function loadCategories() {
+    const d = window.dashboard;
+    window.categories = await d.fetchJson("/api/categories/");
+    const select = document.querySelector("#edit-form select[name='category_id']");
+    // Group options by kind for readability
+    const byKind = {};
+    for (const c of window.categories) {
+      (byKind[c.kind] ||= []).push(c);
+    }
+    let html = '<option value="">— Uncategorised —</option>';
+    for (const kind of Object.keys(byKind).sort()) {
+      html += `<optgroup label="${kind}">`;
+      for (const c of byKind[kind]) html += `<option value="${c.id}">${c.name}</option>`;
+      html += "</optgroup>";
+    }
+    select.innerHTML = html;
+  }
+
+  function openEdit(t) {
+    const form = document.getElementById("edit-form");
+    form.elements.id.value          = t.id;
+    form.elements.date.value        = t.date;
+    form.elements.description.value = t.description;
+    form.elements.amount.value      = t.amount;
+    form.elements.balance.value     = t.balance ?? "";
+    form.elements.category_id.value = t.category ? t.category.id : "";
+    document.getElementById("edit-error").classList.add("hidden");
+    document.getElementById("edit-modal").classList.remove("hidden");
+    document.getElementById("edit-modal").classList.add("flex");
+  }
+
+  function closeEdit() {
+    document.getElementById("edit-modal").classList.add("hidden");
+    document.getElementById("edit-modal").classList.remove("flex");
+  }
+
+  document.getElementById("edit-close").addEventListener("click", closeEdit);
+  document.getElementById("edit-cancel").addEventListener("click", closeEdit);
+  document.getElementById("edit-modal").addEventListener("click", e => {
+    // Click on backdrop (the modal container itself) closes; clicks inside the panel bubble up but stop here
+    if (e.target.id === "edit-modal") closeEdit();
+  });
+
+  document.getElementById("edit-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const id = form.elements.id.value;
+    const payload = {
+      date: form.elements.date.value,
+      description: form.elements.description.value,
+      amount: form.elements.amount.value,
+      balance: form.elements.balance.value === "" ? null : form.elements.balance.value,
+      category_id: form.elements.category_id.value === "" ? null : parseInt(form.elements.category_id.value, 10),
+    };
+    const err = document.getElementById("edit-error");
+    err.classList.add("hidden");
+    try {
+      const resp = await fetch(`/api/transactions/${id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        err.textContent = JSON.stringify(data) || `HTTP ${resp.status}`;
+        err.classList.remove("hidden");
+        return;
+      }
+      closeEdit();
+      window.loadTxns(window.currentPage);
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.remove("hidden");
+    }
+  });
 
   window.loadTxns = async function (page) {
     const d = window.dashboard;
@@ -76,11 +197,13 @@
       else if (el.value) params.set(el.name, el.value);
     }
     const data = await d.fetchJson("/api/transactions/?" + params.toString());
+    window.txnsById = {};
     const tbody = document.getElementById("txn-tbody");
     if (!data.results.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty">No transactions match.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No transactions match.</td></tr>';
     } else {
       tbody.innerHTML = data.results.map(t => {
+        window.txnsById[t.id] = t;
         const amt = parseFloat(t.amount);
         const bal = t.balance !== null ? d.formatCurrency(parseFloat(t.balance), true) : "—";
         const catTag = t.category
@@ -97,8 +220,12 @@
             <td>${catTag}</td>
             <td class="num font-medium ${amt >= 0 ? "text-emerald-600" : "text-rose-600"}">${d.formatCurrency(amt, true)}</td>
             <td class="num text-zinc-500">${bal}</td>
+            <td class="num"><button type="button" data-edit="${t.id}" class="text-xs text-indigo-600 hover:text-indigo-500">edit</button></td>
           </tr>`;
       }).join("");
+      tbody.querySelectorAll("button[data-edit]").forEach(btn => {
+        btn.addEventListener("click", () => openEdit(window.txnsById[btn.dataset.edit]));
+      });
     }
     const total = data.count;
     const shown = data.results.length;
@@ -108,7 +235,7 @@
     document.getElementById("next-page").disabled = !data.next;
   };
 
-  window.addEventListener("load", () => {
+  window.addEventListener("load", async () => {
     const scopeSelect = document.querySelector('#filters select[name="scope"]');
     document.querySelectorAll("#view-tabs button").forEach(b => {
       b.addEventListener("click", () => {
@@ -118,6 +245,7 @@
         window.loadTxns(1);
       });
     });
+    await loadCategories();
     window.loadTxns(1);
   });
 </script>

@@ -1,0 +1,159 @@
+{% extends "finance/base.html" %}
+
+{% block title %}Upload{% endblock %}
+
+{% block content %}
+<div class="flex items-end justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="text-3xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">Upload statements</h1>
+    <p class="text-sm text-zinc-500 mt-1">Bank-statement PDFs and Degiro Account.csv exports — drag in or pick. Re-uploads are safe; duplicates are skipped.</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-12 gap-3">
+
+  <div class="tile col-span-12">
+    <form id="upload-form">
+      <label for="file-input"
+             id="drop-zone"
+             class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl py-12 px-6 cursor-pointer transition hover:border-indigo-400 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-zinc-400"><path d="M12 13v8"/><path d="M5 21h14"/><path d="m17 8-5-5-5 5"/><path d="M12 3v14"/></svg>
+        <div class="font-medium text-zinc-700 dark:text-zinc-200">Drop files here, or click to pick</div>
+        <div class="text-xs text-zinc-500">.pdf bank statements · .csv Degiro export · multiple files OK</div>
+        <input type="file" id="file-input" name="files" multiple accept=".pdf,.csv" class="hidden">
+      </label>
+
+      <div id="staged" class="mt-4 grid gap-2"></div>
+
+      <div class="mt-4 flex items-center justify-end gap-2">
+        <button type="button" id="clear-btn"   class="px-3 py-1.5 text-sm rounded-md text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100 hidden">Clear</button>
+        <button type="submit" id="upload-btn"  class="px-4 py-2 text-sm font-medium rounded-md bg-indigo-600 text-white hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Upload</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="tile col-span-12" id="results-tile" hidden>
+    <div class="tile-label mb-3">Results</div>
+    <div id="results" class="grid gap-2"></div>
+  </div>
+
+</div>
+
+<script>
+  const fileInput  = document.getElementById("file-input");
+  const dropZone   = document.getElementById("drop-zone");
+  const staged     = document.getElementById("staged");
+  const uploadBtn  = document.getElementById("upload-btn");
+  const clearBtn   = document.getElementById("clear-btn");
+  const resultsTile = document.getElementById("results-tile");
+  const resultsEl   = document.getElementById("results");
+
+  let queue = [];
+
+  function refreshStaged() {
+    staged.innerHTML = queue.map((f, i) => `
+      <div class="flex items-center justify-between px-3 py-2 rounded-md bg-zinc-100 dark:bg-zinc-800 text-sm">
+        <div class="truncate"><span class="font-medium">${f.name}</span><span class="text-zinc-500 ml-2">${(f.size/1024).toFixed(1)} KB</span></div>
+        <button type="button" data-i="${i}" class="text-zinc-500 hover:text-rose-600">remove</button>
+      </div>`).join("");
+    uploadBtn.disabled = queue.length === 0;
+    clearBtn.classList.toggle("hidden", queue.length === 0);
+    staged.querySelectorAll("button[data-i]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        queue.splice(parseInt(btn.dataset.i, 10), 1);
+        refreshStaged();
+      });
+    });
+  }
+
+  function addFiles(list) {
+    for (const f of list) {
+      // Accept .pdf or .csv only, by extension (some browsers send octet-stream)
+      if (/\.(pdf|csv)$/i.test(f.name)) queue.push(f);
+    }
+    refreshStaged();
+  }
+
+  fileInput.addEventListener("change", e => addFiles(e.target.files));
+
+  ["dragenter", "dragover"].forEach(ev => {
+    dropZone.addEventListener(ev, e => {
+      e.preventDefault();
+      dropZone.classList.add("border-indigo-400", "bg-indigo-50/40", "dark:bg-indigo-900/10");
+    });
+  });
+  ["dragleave", "drop"].forEach(ev => {
+    dropZone.addEventListener(ev, e => {
+      e.preventDefault();
+      dropZone.classList.remove("border-indigo-400", "bg-indigo-50/40", "dark:bg-indigo-900/10");
+    });
+  });
+  dropZone.addEventListener("drop", e => {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  clearBtn.addEventListener("click", () => { queue = []; refreshStaged(); });
+
+  function renderResult(r) {
+    if (r.error) {
+      return `
+        <div class="px-3 py-2 rounded-md bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 text-sm">
+          <div class="font-medium text-rose-700 dark:text-rose-300">${r.file}</div>
+          <div class="text-rose-600 dark:text-rose-400 mt-0.5">${r.error}</div>
+        </div>`;
+    }
+    const total = (r.created || 0) + (r.skipped || 0) + (r.ignored || 0);
+    const counts = [
+      r.created !== undefined ? `<span class="text-emerald-600 dark:text-emerald-400">+${r.created} new</span>` : "",
+      r.skipped !== undefined ? `<span class="text-zinc-500">${r.skipped} existing</span>` : "",
+      r.ignored ? `<span class="text-amber-600 dark:text-amber-400">${r.ignored} ignored</span>` : "",
+      r.movements !== undefined ? `<span class="text-zinc-500">${r.movements} parsed</span>` : "",
+    ].filter(Boolean).join(" · ");
+    const accounts = r.accounts ? `<div class="text-xs text-zinc-500 mt-0.5">${r.accounts.join(", ")}</div>` : "";
+    return `
+      <div class="px-3 py-2 rounded-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 text-sm">
+        <div class="font-medium text-zinc-800 dark:text-zinc-100">${r.file}</div>
+        <div class="text-zinc-600 dark:text-zinc-300 mt-0.5">${counts || total + " rows"}</div>
+        ${accounts}
+      </div>`;
+  }
+
+  document.getElementById("upload-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!queue.length) return;
+
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = "Uploading…";
+    resultsTile.hidden = false;
+    resultsEl.innerHTML = `<div class="text-sm text-zinc-500">Importing ${queue.length} file${queue.length === 1 ? "" : "s"}…</div>`;
+
+    const formData = new FormData();
+    for (const f of queue) formData.append("files", f);
+
+    // Pull the CSRF token out of the Django-issued cookie for the POST
+    const csrf = (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
+
+    try {
+      const resp = await fetch("/api/upload/", {
+        method: "POST",
+        body: formData,
+        headers: { "X-CSRFToken": csrf },
+        credentials: "same-origin",
+      });
+      const data = await resp.json();
+      if (!resp.ok) {
+        resultsEl.innerHTML = `<div class="text-sm text-rose-600">${data.error || "Upload failed"}</div>`;
+      } else {
+        resultsEl.innerHTML = data.results.map(renderResult).join("");
+        queue = [];
+        refreshStaged();
+      }
+    } catch (err) {
+      resultsEl.innerHTML = `<div class="text-sm text-rose-600">${err.message}</div>`;
+    } finally {
+      uploadBtn.disabled = false;
+      uploadBtn.textContent = "Upload";
+    }
+  });
+</script>
+{% endblock %}

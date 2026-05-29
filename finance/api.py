@@ -7,17 +7,21 @@ These aggregate the imported data for the dashboards: income, expenses,
 cashflow, accounts, balance snapshots and a filterable transactions list.
 """
 
+import tempfile
 from datetime import date
 
 from django.db.models import Q, Sum
 from django.db.models.functions import TruncMonth
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from finance.models import Account, BalanceSnapshot, Category, PortfolioSnapshot, StatementImport, Transaction
-from finance.serializers import TransactionSerializer
+from finance.parsers import extract_text
+from finance.serializers import CategoryBriefSerializer, TransactionSerializer
+from finance.services import import_degiro_csv, import_statement
 
 
 def _quarter(month):
@@ -627,3 +631,115 @@ class TransactionListView(ListAPIView):
             qs = qs.filter(category__isnull=True)
 
         return qs
+
+
+class TransactionDetailView(RetrieveUpdateAPIView):
+    """
+    Read or update a single transaction.
+
+    - GET returns the same shape as the list view (embedded account/category)
+    - PATCH accepts date, value_date, description, amount, balance, category_id
+    """
+
+    queryset = Transaction.objects.select_related("account", "category")
+    serializer_class = TransactionSerializer
+
+
+class CategoryListView(ListAPIView):
+    """
+    Flat list of categories for the edit dropdown.
+
+    - Ordered by kind then name
+    - Not paginated; the catalogue is small
+    """
+
+    queryset = Category.objects.all().order_by("kind", "name")
+    serializer_class = CategoryBriefSerializer
+    pagination_class = None
+
+
+def _process_uploaded_file(uploaded):
+    """
+    Run the right importer for one uploaded file based on its extension.
+
+    Args:
+        uploaded (UploadedFile): The file from request.FILES
+
+    Returns:
+        dict: A per-file result row including the filename, the importer used
+        and the counts the importer reports. On failure the dict carries an
+        "error" key with a readable message instead.
+    """
+
+    name = uploaded.name
+    lower = name.lower()
+
+    # Bank-statement PDFs go through pdfplumber, so they need a real file on
+    # disk; the CSV is small and decodes fine straight from memory.
+    if lower.endswith(".pdf"):
+        with tempfile.NamedTemporaryFile(suffix=".pdf") as tmp:
+            for chunk in uploaded.chunks():
+                tmp.write(chunk)
+            tmp.flush()
+            text = extract_text(tmp.name)
+        result = import_statement(text, source_file=name)
+        return {
+            "file": name,
+            "type": "statement",
+            "created": result.created,
+            "skipped": result.skipped,
+            "ignored": result.ignored,
+            "accounts": [a.iban for a in result.accounts],
+        }
+
+    if lower.endswith(".csv"):
+        text = uploaded.read().decode("utf-8")
+        result = import_degiro_csv(text, source_file=name)
+        return {
+            "file": name,
+            "type": "degiro_csv",
+            "created": result["created"],
+            "skipped": result["skipped"],
+            "movements": result["movements"],
+        }
+
+    return {"file": name, "error": "Unsupported file type (use .pdf or .csv)"}
+
+
+class UploadView(APIView):
+    """
+    Accept one or more bank-statement PDFs and/or Degiro CSVs.
+
+    - Dispatches by extension: .pdf -> import_statement, .csv -> import_degiro_csv
+    - Each file is processed independently so one bad file does not abort the batch
+    - Returns a per-file result list with counts (or an error message)
+    """
+
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        """
+        Process every uploaded file and report per-file results.
+
+        Args:
+            request (Request): The incoming multipart request; expects one or
+                more files in the "files" field
+
+        Returns:
+            Response: {"results": [...]} with one entry per file
+        """
+
+        uploads = request.FILES.getlist("files")
+        if not uploads:
+            return Response({"results": [], "error": "No files in the request"}, status=400)
+
+        results = []
+        for uploaded in uploads:
+            try:
+                results.append(_process_uploaded_file(uploaded))
+            except Exception as exc:  # noqa: BLE001 -- surface any parser/import error to the caller
+                # We want a single bad file to fail loudly without taking down
+                # the rest of the batch, so the exception is caught and
+                # returned as part of that file's result row.
+                results.append({"file": uploaded.name, "error": str(exc)})
+        return Response({"results": results})
