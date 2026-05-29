@@ -263,13 +263,14 @@ def test_overview_endpoint_summary_numbers(api_client, seeded):
     assert body["counts"]["accounts"] == 2
     assert body["counts"]["transactions"] == 4
     nw = body["net_worth"]
-    assert nw["savings"] == 5000.0
-    # House is now just (house account balance - mortgage); savings tracks
-    # separately. Total = business + house + personal + savings.
+    # House is just the household account's last balance; mortgage is reported
+    # alongside but no longer reduces net worth. Net = business + house +
+    # personal + savings + investments.
     assert nw["business"] == 800.0
-    assert nw["house"] == 1400.0 - 100000.0
+    assert nw["house"] == 1400.0
     assert nw["personal"] == 0.0
-    assert nw["net_worth"] == 800.0 + (1400.0 - 100000.0) + 0.0 + 5000.0
+    assert nw["savings"] == 5000.0
+    assert nw["net_worth"] == 800.0 + 1400.0 + 0.0 + 5000.0
 
 
 @pytest.mark.django_db
