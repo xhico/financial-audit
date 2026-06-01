@@ -7,6 +7,7 @@ from django.urls import path
 from finance.api import (
     AccountsView,
     CashflowView,
+    CategoriseBulkView,
     CategoriseMatchingView,
     CategoryListView,
     ExpensesView,
@@ -37,6 +38,11 @@ urlpatterns = [
         "transactions/categorise-matching/",
         CategoriseMatchingView.as_view(),
         name="transactions-categorise-matching",
+    ),
+    path(
+        "transactions/categorise-bulk/",
+        CategoriseBulkView.as_view(),
+        name="transactions-categorise-bulk",
     ),
     path("transactions/<int:pk>/", TransactionDetailView.as_view(), name="transaction-detail"),
     path("categories/", CategoryListView.as_view(), name="categories"),

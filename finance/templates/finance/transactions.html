@@ -50,17 +50,42 @@
   <table class="table-data">
     <thead>
       <tr>
+        <th class="w-8 pr-0"><input type="checkbox" id="select-all" class="w-4 h-4 accent-indigo-600"></th>
         <th>Date</th><th>Account</th><th>Description</th>
         <th>Category</th><th class="num">Amount</th><th class="num">Balance</th>
         <th></th>
       </tr>
     </thead>
-    <tbody id="txn-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+    <tbody id="txn-tbody"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody>
   </table>
   <div class="flex items-center justify-end gap-2 p-3 border-t border-zinc-100 bg-zinc-50/70">
     <button type="button" class="btn-ghost" id="prev-page" onclick="window.loadTxns(window.currentPage - 1)">‹ Prev</button>
     <button type="button" class="btn-ghost" id="next-page" onclick="window.loadTxns(window.currentPage + 1)">Next ›</button>
   </div>
+</div>
+
+<!-- Floating selection bar: only visible when 1+ rows are checked -->
+<div id="selection-bar"
+     class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-3 rounded-full shadow-lg
+            bg-zinc-900 text-zinc-100 ring-1 ring-zinc-800
+            dark:bg-zinc-100 dark:text-zinc-900 dark:ring-zinc-300">
+  <span class="text-sm font-medium" id="selection-count">0 selected</span>
+  <span class="text-zinc-500 dark:text-zinc-500">·</span>
+  <label class="text-xs">Set category
+    <select id="bulk-category"
+            class="ml-2 px-2 py-1 rounded-md text-sm bg-zinc-800 text-zinc-100 ring-1 ring-zinc-700
+                   dark:bg-white dark:text-zinc-900 dark:ring-zinc-300 focus:outline-none">
+      <option value="">— Uncategorised —</option>
+    </select>
+  </label>
+  <button type="button" id="bulk-apply"
+          class="px-3 py-1.5 rounded-full text-sm font-medium bg-indigo-500 text-white hover:bg-indigo-400 disabled:opacity-50">
+    Apply
+  </button>
+  <button type="button" id="bulk-clear"
+          class="text-sm text-zinc-400 hover:text-zinc-100 dark:text-zinc-500 dark:hover:text-zinc-900">
+    Clear
+  </button>
 </div>
 
 <!-- Edit modal: hidden until a row's "edit" button is clicked -->
@@ -302,6 +327,97 @@
     }
   });
 
+  // --- Multi-select bulk categorise -----------------------------------------
+
+  // IDs persist across page navigation so the user can hop pages and still
+  // apply one category to everything they've picked
+  window.selectedIds = new Set();
+
+  function toggleSelection(id, on) {
+    if (on) window.selectedIds.add(id); else window.selectedIds.delete(id);
+    refreshSelectionBar();
+    // Keep the header checkbox consistent when individual rows change
+    const selectAll = document.getElementById("select-all");
+    if (selectAll) {
+      const visible = Object.keys(window.txnsById).map(Number);
+      selectAll.checked = visible.length > 0 && visible.every(vid => window.selectedIds.has(vid));
+    }
+  }
+
+  function refreshSelectionBar() {
+    const bar = document.getElementById("selection-bar");
+    const n   = window.selectedIds.size;
+    bar.classList.toggle("hidden", n === 0);
+    document.getElementById("selection-count").textContent = `${n} selected`;
+  }
+
+  function populateBulkCategorySelect() {
+    const select = document.getElementById("bulk-category");
+    const byKind = {};
+    for (const c of window.categories) {
+      (byKind[c.kind] ||= []).push(c);
+    }
+    let html = '<option value="">— Uncategorised —</option>';
+    for (const kind of Object.keys(byKind).sort()) {
+      html += `<optgroup label="${kind}">`;
+      for (const c of byKind[kind]) html += `<option value="${c.id}">${c.name}</option>`;
+      html += "</optgroup>";
+    }
+    select.innerHTML = html;
+  }
+
+  document.getElementById("select-all").addEventListener("change", e => {
+    const on = e.currentTarget.checked;
+    for (const id of Object.keys(window.txnsById)) {
+      const intId = parseInt(id, 10);
+      if (on) window.selectedIds.add(intId); else window.selectedIds.delete(intId);
+      const box = document.querySelector(`input[data-select="${id}"]`);
+      if (box) box.checked = on;
+    }
+    refreshSelectionBar();
+  });
+
+  document.getElementById("bulk-clear").addEventListener("click", () => {
+    window.selectedIds.clear();
+    document.querySelectorAll("input[data-select]").forEach(b => { b.checked = false; });
+    document.getElementById("select-all").checked = false;
+    refreshSelectionBar();
+  });
+
+  document.getElementById("bulk-apply").addEventListener("click", async () => {
+    if (window.selectedIds.size === 0) return;
+    const select   = document.getElementById("bulk-category");
+    const value    = select.value;
+    const category = value === "" ? null : parseInt(value, 10);
+    const button   = document.getElementById("bulk-apply");
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = "Applying…";
+    try {
+      const resp = await fetch("/api/transactions/categorise-bulk/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          ids: Array.from(window.selectedIds),
+          category_id: category,
+        }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(data.error || `HTTP ${resp.status}`);
+        return;
+      }
+      window.selectedIds.clear();
+      await window.loadTxns(window.currentPage);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = original;
+    }
+  });
+
   window.loadTxns = async function (page) {
     const d = window.dashboard;
     window.currentPage = Math.max(1, page);
@@ -316,7 +432,7 @@
     window.txnsById = {};
     const tbody = document.getElementById("txn-tbody");
     if (!data.results.length) {
-      tbody.innerHTML = '<tr><td colspan="7" class="empty">No transactions match.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No transactions match.</td></tr>';
     } else {
       tbody.innerHTML = data.results.map(t => {
         window.txnsById[t.id] = t;
@@ -325,8 +441,10 @@
         const catTag = t.category
           ? `<span class="tag ${t.category.kind}">${t.category.name}</span>`
           : '<span class="tag transfer">uncategorised</span>';
+        const checked = window.selectedIds.has(t.id) ? "checked" : "";
         return `
-          <tr>
+          <tr data-id="${t.id}">
+            <td class="pr-0"><input type="checkbox" data-select="${t.id}" class="w-4 h-4 accent-indigo-600" ${checked}></td>
             <td class="whitespace-nowrap text-zinc-500">${t.date}</td>
             <td>
               <div class="font-medium">${t.account.name}</div>
@@ -342,6 +460,16 @@
       tbody.querySelectorAll("button[data-edit]").forEach(btn => {
         btn.addEventListener("click", () => openEdit(window.txnsById[btn.dataset.edit]));
       });
+      tbody.querySelectorAll("input[data-select]").forEach(box => {
+        box.addEventListener("change", () => toggleSelection(parseInt(box.dataset.select, 10), box.checked));
+      });
+    }
+    refreshSelectionBar();
+    // Reset header checkbox state: ticked only if every visible row is selected
+    const selectAll = document.getElementById("select-all");
+    if (selectAll) {
+      const visible = Object.keys(window.txnsById).map(Number);
+      selectAll.checked = visible.length > 0 && visible.every(id => window.selectedIds.has(id));
     }
     const total = data.count;
     const shown = data.results.length;
@@ -362,6 +490,7 @@
       });
     });
     await loadCategories();
+    populateBulkCategorySelect();
     window.loadTxns(1);
   });
 </script>

@@ -800,6 +800,112 @@ def test_seed_post_rejects_rule_with_unknown_category(api_client):
 
 
 @pytest.mark.django_db
+def test_categorise_bulk_applies_to_explicit_ids(api_client):
+    """
+    POST /api/transactions/categorise-bulk/ updates every transaction whose
+    id is in the request payload, regardless of current category.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    account = Account.objects.create(name="House", bank="Bank", iban="PT50000000000000000000040", scope="personal")
+    shopping = Category.objects.create(name="Online shopping", kind=Category.Kind.EXPENSE)
+    existing = Category.objects.create(name="Other", kind=Category.Kind.EXPENSE)
+
+    a = Transaction.objects.create(
+        account=account, date=date(2026, 5, 1), description="ROW A", amount=Decimal("-10.00")
+    )
+    b = Transaction.objects.create(
+        account=account, date=date(2026, 5, 2), description="ROW B", amount=Decimal("-20.00"), category=existing
+    )
+    # Not in the selection: must NOT be touched
+    c = Transaction.objects.create(account=account, date=date(2026, 5, 3), description="ROW C", amount=Decimal("-5.00"))
+
+    response = api_client.post(
+        "/api/transactions/categorise-bulk/",
+        data={"ids": [a.id, b.id], "category_id": shopping.id},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["updated"] == 2
+    a.refresh_from_db()
+    b.refresh_from_db()
+    c.refresh_from_db()
+    assert a.category_id == shopping.id
+    assert b.category_id == shopping.id  # was Other, now overwritten
+    assert c.category is None
+
+
+@pytest.mark.django_db
+def test_categorise_bulk_can_clear_with_null_category(api_client):
+    """
+    Passing category_id=null detaches the category from every selected row.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    account = Account.objects.create(name="House", bank="Bank", iban="PT50000000000000000000041", scope="personal")
+    cat = Category.objects.create(name="Misc", kind=Category.Kind.EXPENSE)
+    t = Transaction.objects.create(
+        account=account, date=date(2026, 5, 1), description="X", amount=Decimal("-1.00"), category=cat
+    )
+
+    response = api_client.post(
+        "/api/transactions/categorise-bulk/",
+        data={"ids": [t.id], "category_id": None},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    t.refresh_from_db()
+    assert t.category is None
+
+
+@pytest.mark.django_db
+def test_categorise_bulk_validates_inputs(api_client, seeded):
+    """
+    Empty ids returns 400; non-integer ids return 400; unknown category_id
+    returns 400.
+
+    Args:
+        api_client (APIClient): Authenticated client
+        seeded (dict): Fixture data, just to have some categories around
+
+    Returns:
+        None
+    """
+
+    # Empty / missing ids
+    r = api_client.post("/api/transactions/categorise-bulk/", data={"ids": [], "category_id": None}, format="json")
+    assert r.status_code == 400
+
+    # Non-integer ids
+    r = api_client.post(
+        "/api/transactions/categorise-bulk/",
+        data={"ids": ["abc"], "category_id": None},
+        format="json",
+    )
+    assert r.status_code == 400
+
+    # Unknown category_id
+    r = api_client.post(
+        "/api/transactions/categorise-bulk/",
+        data={"ids": [1], "category_id": 99999},
+        format="json",
+    )
+    assert r.status_code == 400
+
+
+@pytest.mark.django_db
 def test_categorise_matching_applies_to_every_uncategorised_match(api_client):
     """
     POST /api/transactions/categorise-matching/ categorises every uncategorised

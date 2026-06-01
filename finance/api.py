@@ -764,6 +764,49 @@ class SeedView(APIView):
         return Response(result)
 
 
+class CategoriseBulkView(APIView):
+    """
+    Apply a category to an explicit list of transaction IDs.
+
+    - Driven by the multi-select checkbox UI on the Transactions page
+    - category_id is a single value applied uniformly; null detaches the
+      category from every selected row
+    - Unlike CategoriseMatchingView, this never looks at descriptions; the
+      caller has hand-picked the rows so we trust the selection
+    """
+
+    def post(self, request):
+        """
+        Update every transaction whose id is in the request's ids list.
+
+        Args:
+            request (Request): JSON body with:
+                ids (list[int]): Transaction primary keys to update.
+                category_id (int | None): Target category; null detaches it.
+
+        Returns:
+            Response: {"updated": int} count of rows that changed.
+        """
+
+        ids = (request.data or {}).get("ids") or []
+        if not isinstance(ids, list) or not ids:
+            return Response({"error": "ids must be a non-empty list"}, status=400)
+        # All ids must look like integers; reject early so a bad payload
+        # doesn't surface as a database error
+        try:
+            ids = [int(x) for x in ids]
+        except TypeError, ValueError:
+            return Response({"error": "ids must be integers"}, status=400)
+
+        category_id = (request.data or {}).get("category_id")
+        if category_id is not None:
+            if not Category.objects.filter(pk=category_id).exists():
+                return Response({"error": f"Unknown category_id {category_id!r}"}, status=400)
+
+        updated = Transaction.objects.filter(id__in=ids).update(category_id=category_id)
+        return Response({"updated": updated})
+
+
 class CategoriseMatchingView(APIView):
     """
     Bulk-categorise every uncategorised transaction matching a description.
