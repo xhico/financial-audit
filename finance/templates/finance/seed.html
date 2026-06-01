@@ -52,10 +52,26 @@
   </div>
 
   <div class="tile col-span-12">
-    <details>
-      <summary class="cursor-pointer text-sm font-medium text-zinc-700 dark:text-zinc-200">Current configuration (preview)</summary>
-      <pre id="seed-preview" class="mt-3 text-xs max-h-96 overflow-auto bg-zinc-50 dark:bg-zinc-800/40 rounded-md p-3 font-mono leading-tight">loading…</pre>
-    </details>
+    <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+      <div>
+        <div class="tile-label">Edit configuration</div>
+        <div class="text-xs text-zinc-500 mt-1">Same JSON shape as the file upload. Edits go through the same upsert path; existing rows are updated in place.</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button type="button" id="editor-revert" class="btn-ghost text-sm">Revert</button>
+        <button type="button" id="editor-save"   class="btn-primary text-sm" disabled>Save</button>
+      </div>
+    </div>
+    <textarea id="seed-editor"
+              spellcheck="false"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              class="w-full h-96 text-xs font-mono leading-tight rounded-md p-3
+                     bg-zinc-50 dark:bg-zinc-800/40 ring-1 ring-zinc-200 dark:ring-zinc-700
+                     text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-500
+                     whitespace-pre">loading…</textarea>
+    <div id="editor-status" class="text-xs mt-2 text-zinc-500"></div>
   </div>
 
 </div>
@@ -68,9 +84,15 @@
   const downloadBtn = document.getElementById("download-btn");
   const resultsTile = document.getElementById("results-tile");
   const resultsEl   = document.getElementById("results");
-  const previewEl   = document.getElementById("seed-preview");
+  const editorEl    = document.getElementById("seed-editor");
+  const editorSave  = document.getElementById("editor-save");
+  const editorRevert= document.getElementById("editor-revert");
+  const editorStat  = document.getElementById("editor-status");
 
   let staged = null;
+  // Snapshot of the last server-applied JSON, used to detect unsaved edits
+  // and to power the Revert button
+  let lastServerJson = "";
 
   function csrfToken() {
     return (document.cookie.match(/(?:^|; )csrftoken=([^;]+)/) || [])[1] || "";
@@ -82,11 +104,86 @@
       document.getElementById("kpi-categories").textContent = data.categories.length;
       document.getElementById("kpi-rules").textContent      = data.rules.length;
       document.getElementById("kpi-ignore").textContent     = data.ignore.length;
-      previewEl.textContent = JSON.stringify(data, null, 2);
+      const pretty = JSON.stringify(data, null, 2);
+      editorEl.value     = pretty;
+      lastServerJson     = pretty;
+      editorSave.disabled = true;
+      editorStat.textContent = "";
+      editorStat.className   = "text-xs mt-2 text-zinc-500";
     } catch (e) {
-      previewEl.textContent = "Failed to load current configuration: " + e.message;
+      editorEl.value     = "// Failed to load current configuration: " + e.message;
+      editorSave.disabled = true;
     }
   }
+
+  function markEdited() {
+    const dirty = editorEl.value !== lastServerJson;
+    editorSave.disabled = !dirty;
+    if (dirty) {
+      // Try a syntax check on the fly so the Save button only enables on
+      // parseable JSON; surface the error inline without nagging.
+      try {
+        JSON.parse(editorEl.value);
+        editorStat.textContent = "Unsaved edits";
+        editorStat.className   = "text-xs mt-2 text-amber-600 dark:text-amber-400";
+      } catch (e) {
+        editorSave.disabled = true;
+        editorStat.textContent = "JSON parse error: " + e.message;
+        editorStat.className   = "text-xs mt-2 text-rose-600 dark:text-rose-400";
+      }
+    } else {
+      editorStat.textContent = "";
+      editorStat.className   = "text-xs mt-2 text-zinc-500";
+    }
+  }
+
+  editorEl.addEventListener("input", markEdited);
+
+  editorRevert.addEventListener("click", () => {
+    editorEl.value = lastServerJson;
+    markEdited();
+  });
+
+  editorSave.addEventListener("click", async () => {
+    let parsed;
+    try {
+      parsed = JSON.parse(editorEl.value);
+    } catch (e) {
+      editorStat.textContent = "JSON parse error: " + e.message;
+      editorStat.className   = "text-xs mt-2 text-rose-600 dark:text-rose-400";
+      return;
+    }
+    editorSave.disabled = true;
+    editorSave.textContent = "Saving…";
+    try {
+      const resp = await fetch("/api/seed/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+        body: JSON.stringify(parsed),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        editorStat.textContent = data.error || `HTTP ${resp.status}`;
+        editorStat.className   = "text-xs mt-2 text-rose-600 dark:text-rose-400";
+      } else {
+        resultsTile.hidden = false;
+        resultsEl.innerHTML = `
+          <div class="text-emerald-700 dark:text-emerald-300 font-medium">Saved from inline editor</div>
+          <div class="text-zinc-600 dark:text-zinc-300">
+            ${data.categories} categories · ${data.rules_created} new rules · ${data.rules_updated} updated rules ·
+            ${data.ignore_created} new ignore patterns · ${data.ignore_updated} updated ignore patterns
+          </div>`;
+        // Re-pull the live config so the editor reflects exactly what was applied
+        await refreshSummary();
+      }
+    } catch (err) {
+      editorStat.textContent = err.message;
+      editorStat.className   = "text-xs mt-2 text-rose-600 dark:text-rose-400";
+    } finally {
+      editorSave.textContent = "Save";
+    }
+  });
 
   downloadBtn.addEventListener("click", async () => {
     try {
