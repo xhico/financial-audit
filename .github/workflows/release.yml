@@ -1,0 +1,33 @@
+name: Release on tag
+
+# Push a SemVer tag (v0.3.2, v1.0.0, ...) and this workflow publishes a
+# matching GitHub Release with the annotated tag message as the body.
+# Lightweight by design: the runner just calls `gh release create`, no
+# external action.
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# The default GITHUB_TOKEN needs write access to create releases
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 pulls the full history so `--notes-from-tag` can
+      # read the annotated tag's message
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --notes-from-tag \
+            --title "${GITHUB_REF_NAME}"
