@@ -4,7 +4,7 @@
 
 from rest_framework import serializers
 
-from finance.models import Account, Category, PortfolioSnapshot, Transaction
+from finance.models import Account, Category, CategoryRule, IgnoreRule, PortfolioSnapshot, Transaction
 
 
 class CategoryBriefSerializer(serializers.ModelSerializer):
@@ -66,6 +66,62 @@ class TransactionSerializer(serializers.ModelSerializer):
             "category_id",
             "statement_id",
         )
+
+
+class CategorySerializer(serializers.ModelSerializer):
+    """
+    Full read/write serializer for a Category.
+
+    - Used by the Seed page's structured GUI for create / update / delete
+    - The list and dropdown endpoints still consume the same payload since
+      the brief fields (id / name / kind) remain at the top
+    """
+
+    class Meta:
+        model = Category
+        fields = ("id", "name", "kind", "parent")
+
+
+class CategoryRuleSerializer(serializers.ModelSerializer):
+    """
+    Full read/write serializer for a CategoryRule.
+
+    - Embeds the resolved category for display; accepts category_id on write
+    - effective_from is optional and may be null to mean "always"
+    """
+
+    category = CategoryBriefSerializer(read_only=True)
+    category_id = serializers.PrimaryKeyRelatedField(
+        source="category",
+        queryset=Category.objects.all(),
+        write_only=True,
+    )
+
+    class Meta:
+        model = CategoryRule
+        fields = (
+            "id",
+            "match_text",
+            "sign",
+            "scope",
+            "effective_from",
+            "category",
+            "category_id",
+            "priority",
+        )
+
+
+class IgnoreRuleSerializer(serializers.ModelSerializer):
+    """
+    Full read/write serializer for an IgnoreRule.
+
+    - match_text is unique at the database layer; the serializer leaves
+      uniqueness enforcement there and surfaces the resulting 400.
+    """
+
+    class Meta:
+        model = IgnoreRule
+        fields = ("id", "match_text", "note")
 
 
 class PortfolioSnapshotSerializer(serializers.ModelSerializer):

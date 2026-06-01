@@ -13,6 +13,7 @@ from datetime import date
 
 from django.db.models import Q, Sum
 from django.db.models.functions import TruncMonth
+from rest_framework import viewsets
 from rest_framework.generics import ListAPIView, RetrieveUpdateAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
@@ -32,7 +33,9 @@ from finance.models import (
 from finance.parsers import extract_text
 from finance.serializers import (
     AccountBriefSerializer,
-    CategoryBriefSerializer,
+    CategoryRuleSerializer,
+    CategorySerializer,
+    IgnoreRuleSerializer,
     PortfolioSnapshotSerializer,
     TransactionSerializer,
 )
@@ -851,16 +854,46 @@ class CategoriseMatchingView(APIView):
         return Response({"updated": updated})
 
 
-class CategoryListView(ListAPIView):
+class CategoryViewSet(viewsets.ModelViewSet):
     """
-    Flat list of categories for the edit dropdown.
+    Full CRUD over the Category table.
 
-    - Ordered by kind then name
-    - Not paginated; the catalogue is small
+    - GET list at /api/categories/ keeps the contract the transaction edit
+      modal's dropdown depends on (flat, unpaginated, id+name+kind plus
+      optional parent)
+    - POST / PATCH / DELETE drive the Seed page's structured editor
+    - Ordering matches the existing list endpoint (kind then name)
     """
 
     queryset = Category.objects.all().order_by("kind", "name")
-    serializer_class = CategoryBriefSerializer
+    serializer_class = CategorySerializer
+    pagination_class = None
+
+
+class CategoryRuleViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD over the CategoryRule table.
+
+    - Ordered by priority then match_text so the list mirrors the classify
+      order the engine actually walks
+    - Drives the Seed page's Rules table
+    """
+
+    queryset = CategoryRule.objects.select_related("category").order_by("priority", "match_text")
+    serializer_class = CategoryRuleSerializer
+    pagination_class = None
+
+
+class IgnoreRuleViewSet(viewsets.ModelViewSet):
+    """
+    Full CRUD over the IgnoreRule table.
+
+    - Drives the Seed page's Ignore patterns table; the importer reads this
+      same table to drop matching rows before insert
+    """
+
+    queryset = IgnoreRule.objects.all().order_by("match_text")
+    serializer_class = IgnoreRuleSerializer
     pagination_class = None
 
 

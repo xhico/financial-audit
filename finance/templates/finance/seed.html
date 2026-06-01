@@ -51,10 +51,70 @@
     <div id="results" class="text-sm grid gap-1"></div>
   </div>
 
+  <!-- Structured editors: Categories / Rules / Ignore patterns -->
+
   <div class="tile col-span-12">
     <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
       <div>
-        <div class="tile-label">Edit configuration</div>
+        <div class="tile-label">Categories</div>
+        <div class="text-xs text-zinc-500 mt-1">Buckets transactions are tagged with. Deleting a category in use is allowed; its transactions become uncategorised.</div>
+      </div>
+      <button type="button" data-add="cat" class="btn-ghost text-sm">+ Add</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-data">
+        <thead><tr><th>Name</th><th>Kind</th><th></th></tr></thead>
+        <tbody id="cat-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+      <div>
+        <div class="tile-label">Classification rules</div>
+        <div class="text-xs text-zinc-500 mt-1">Lower priority is applied first; the first matching rule wins.</div>
+      </div>
+      <button type="button" data-add="rule" class="btn-ghost text-sm">+ Add</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-data">
+        <thead>
+          <tr>
+            <th class="num">Priority</th>
+            <th>Match text</th>
+            <th>Sign</th>
+            <th>Scope</th>
+            <th>Category</th>
+            <th>From</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rule-tbody"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+      <div>
+        <div class="tile-label">Ignore patterns</div>
+        <div class="text-xs text-zinc-500 mt-1">Descriptions matching any pattern are dropped before insert on the next import.</div>
+      </div>
+      <button type="button" data-add="ignore" class="btn-ghost text-sm">+ Add</button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table-data">
+        <thead><tr><th>Match text</th><th>Note</th><th></th></tr></thead>
+        <tbody id="ignore-tbody"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tile col-span-12">
+    <div class="flex items-baseline justify-between mb-3 flex-wrap gap-2">
+      <div>
+        <div class="tile-label">Advanced: edit configuration as JSON</div>
         <div class="text-xs text-zinc-500 mt-1">Same JSON shape as the file upload. Edits go through the same upsert path; existing rows are updated in place.</div>
       </div>
       <div class="flex items-center gap-2">
@@ -74,6 +134,85 @@
     <div id="editor-status" class="text-xs mt-2 text-zinc-500"></div>
   </div>
 
+</div>
+
+<!-- Shared modal shell used by all three entity editors -->
+<div id="row-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-zinc-900/60 p-4 overflow-y-auto">
+  <div class="bg-white dark:bg-zinc-900 rounded-xl shadow-xl w-full max-w-lg mx-auto my-auto p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100" id="row-modal-title">Edit</h2>
+      <button type="button" id="row-close" class="text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100">✕</button>
+    </div>
+    <form id="row-form" class="grid gap-3">
+      <input type="hidden" name="id">
+      <input type="hidden" name="kind">  <!-- entity kind: cat / rule / ignore -->
+
+      <!-- Category fields -->
+      <div data-kind="cat" class="contents">
+        <label class="filter-field">Name
+          <input name="name" type="text" autocomplete="off">
+        </label>
+        <label class="filter-field">Kind
+          <select name="cat_kind">
+            <option value="income">income</option>
+            <option value="expense">expense</option>
+            <option value="transfer">transfer</option>
+            <option value="investment">investment</option>
+            <option value="tax">tax</option>
+            <option value="other">other</option>
+          </select>
+        </label>
+      </div>
+
+      <!-- Rule fields -->
+      <div data-kind="rule" class="contents">
+        <label class="filter-field">Match text (case-insensitive substring)
+          <input name="match_text" type="text" autocomplete="off">
+        </label>
+        <div class="grid grid-cols-3 gap-3">
+          <label class="filter-field">Sign
+            <select name="sign">
+              <option value="any">any</option>
+              <option value="credit">credit</option>
+              <option value="debit">debit</option>
+            </select>
+          </label>
+          <label class="filter-field">Scope
+            <select name="scope">
+              <option value="">any</option>
+              <option value="personal">personal</option>
+              <option value="business">business</option>
+            </select>
+          </label>
+          <label class="filter-field">Priority
+            <input name="priority" type="number" step="1" value="50">
+          </label>
+        </div>
+        <label class="filter-field">Category
+          <select name="category_id"></select>
+        </label>
+        <label class="filter-field">Effective from <span class="text-zinc-400 font-normal">(optional)</span>
+          <input name="effective_from" type="date">
+        </label>
+      </div>
+
+      <!-- Ignore fields -->
+      <div data-kind="ignore" class="contents">
+        <label class="filter-field">Match text
+          <input name="ignore_match_text" type="text" autocomplete="off">
+        </label>
+        <label class="filter-field">Note <span class="text-zinc-400 font-normal">(optional)</span>
+          <input name="note" type="text">
+        </label>
+      </div>
+
+      <div id="row-error" class="text-sm text-rose-600 hidden"></div>
+      <div class="flex items-center justify-end gap-2 mt-2">
+        <button type="button" id="row-cancel" class="px-3 py-1.5 text-sm rounded-md text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-100">Cancel</button>
+        <button type="submit" class="btn-primary">Save</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <script>
@@ -269,6 +408,265 @@
     }
   });
 
-  window.addEventListener("load", refreshSummary);
+  // ------------------------------------------------------------------
+  // Structured editors: Categories / Rules / Ignore patterns
+  // ------------------------------------------------------------------
+
+  // Cached categories for the rule's category dropdown
+  let categories = [];
+
+  function escape(s) {
+    return String(s ?? "").replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[c]);
+  }
+
+  // Each entity declares how it shows up in the table and how the modal
+  // maps to its API payload. Keeps the list / add / edit / delete code
+  // generic so the three sections share one implementation.
+  const ENTITIES = {
+    cat: {
+      title: "category",
+      list: "/api/categories/",
+      detail: id => `/api/categories/${id}/`,
+      tbody: "#cat-tbody",
+      colspan: 3,
+      sort: (a, b) => (a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind.localeCompare(b.kind)),
+      render: row => `
+        <tr>
+          <td class="font-medium">${escape(row.name)}</td>
+          <td><span class="tag ${escape(row.kind)}">${escape(row.kind)}</span></td>
+          <td class="num">
+            <button type="button" class="text-xs text-indigo-600 hover:text-indigo-500" data-edit="cat" data-id="${row.id}">edit</button>
+            <button type="button" class="text-xs text-rose-600 hover:text-rose-500 ml-2" data-del="cat" data-id="${row.id}">delete</button>
+          </td>
+        </tr>`,
+      // Populate modal fields from the row payload
+      load: (form, row) => {
+        form.elements.name.value = row.name ?? "";
+        form.elements.cat_kind.value = row.kind ?? "expense";
+      },
+      // Map modal back to the API payload
+      collect: form => ({
+        name: form.elements.name.value.trim(),
+        kind: form.elements.cat_kind.value,
+      }),
+    },
+    rule: {
+      title: "rule",
+      list: "/api/category-rules/",
+      detail: id => `/api/category-rules/${id}/`,
+      tbody: "#rule-tbody",
+      colspan: 7,
+      sort: (a, b) => a.priority - b.priority || a.match_text.localeCompare(b.match_text),
+      render: row => `
+        <tr>
+          <td class="num tabular-nums">${escape(row.priority)}</td>
+          <td class="font-medium">${escape(row.match_text)}</td>
+          <td><span class="text-xs text-zinc-500">${escape(row.sign)}</span></td>
+          <td><span class="text-xs text-zinc-500">${escape(row.scope || "any")}</span></td>
+          <td>${row.category ? `<span class="tag ${escape(row.category.kind)}">${escape(row.category.name)}</span>` : "—"}</td>
+          <td class="text-xs text-zinc-500">${escape(row.effective_from || "")}</td>
+          <td class="num">
+            <button type="button" class="text-xs text-indigo-600 hover:text-indigo-500" data-edit="rule" data-id="${row.id}">edit</button>
+            <button type="button" class="text-xs text-rose-600 hover:text-rose-500 ml-2" data-del="rule" data-id="${row.id}">delete</button>
+          </td>
+        </tr>`,
+      load: (form, row) => {
+        form.elements.match_text.value     = row.match_text ?? "";
+        form.elements.sign.value           = row.sign ?? "any";
+        form.elements.scope.value          = row.scope ?? "";
+        form.elements.priority.value       = row.priority ?? 50;
+        form.elements.category_id.value    = row.category ? row.category.id : "";
+        form.elements.effective_from.value = row.effective_from ?? "";
+      },
+      collect: form => ({
+        match_text: form.elements.match_text.value.trim(),
+        sign: form.elements.sign.value,
+        scope: form.elements.scope.value,
+        priority: parseInt(form.elements.priority.value, 10) || 0,
+        category_id: parseInt(form.elements.category_id.value, 10),
+        effective_from: form.elements.effective_from.value || null,
+      }),
+    },
+    ignore: {
+      title: "ignore pattern",
+      list: "/api/ignore-rules/",
+      detail: id => `/api/ignore-rules/${id}/`,
+      tbody: "#ignore-tbody",
+      colspan: 3,
+      sort: (a, b) => a.match_text.localeCompare(b.match_text),
+      render: row => `
+        <tr>
+          <td class="font-medium">${escape(row.match_text)}</td>
+          <td class="text-xs text-zinc-500">${escape(row.note || "")}</td>
+          <td class="num">
+            <button type="button" class="text-xs text-indigo-600 hover:text-indigo-500" data-edit="ignore" data-id="${row.id}">edit</button>
+            <button type="button" class="text-xs text-rose-600 hover:text-rose-500 ml-2" data-del="ignore" data-id="${row.id}">delete</button>
+          </td>
+        </tr>`,
+      load: (form, row) => {
+        form.elements.ignore_match_text.value = row.match_text ?? "";
+        form.elements.note.value              = row.note ?? "";
+      },
+      collect: form => ({
+        match_text: form.elements.ignore_match_text.value.trim(),
+        note: form.elements.note.value,
+      }),
+    },
+  };
+
+  // Per-entity row cache so edits can prefill the modal without an extra fetch
+  const rowsById = { cat: {}, rule: {}, ignore: {} };
+
+  async function loadTable(kind) {
+    const entity = ENTITIES[kind];
+    const tbody  = document.querySelector(entity.tbody);
+    try {
+      const rows = await window.dashboard.fetchJson(entity.list);
+      rows.sort(entity.sort);
+      rowsById[kind] = Object.fromEntries(rows.map(r => [r.id, r]));
+      if (kind === "cat") categories = rows;
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="${entity.colspan}" class="empty">None yet.</td></tr>`;
+      } else {
+        tbody.innerHTML = rows.map(entity.render).join("");
+      }
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="${entity.colspan}" class="empty">Failed: ${escape(e.message)}</td></tr>`;
+    }
+  }
+
+  function populateRuleCategorySelect() {
+    const select = document.querySelector("#row-form select[name='category_id']");
+    const byKind = {};
+    for (const c of categories) (byKind[c.kind] ||= []).push(c);
+    let html = "";
+    for (const k of Object.keys(byKind).sort()) {
+      html += `<optgroup label="${escape(k)}">`;
+      for (const c of byKind[k]) html += `<option value="${c.id}">${escape(c.name)}</option>`;
+      html += "</optgroup>";
+    }
+    select.innerHTML = html;
+  }
+
+  function openRowModal(kind, row) {
+    const form   = document.getElementById("row-form");
+    const title  = document.getElementById("row-modal-title");
+    const entity = ENTITIES[kind];
+
+    // Hide every entity-specific field group, then show the active one
+    form.querySelectorAll("[data-kind]").forEach(el => {
+      el.classList.toggle("hidden", el.dataset.kind !== kind);
+    });
+
+    form.elements.id.value   = row && row.id ? row.id : "";
+    form.elements.kind.value = kind;
+    title.textContent = (row && row.id ? `Edit ${entity.title}` : `Add ${entity.title}`);
+
+    if (kind === "rule") populateRuleCategorySelect();
+    entity.load(form, row || {});
+    document.getElementById("row-error").classList.add("hidden");
+    document.getElementById("row-modal").classList.remove("hidden");
+    document.getElementById("row-modal").classList.add("flex");
+  }
+
+  function closeRowModal() {
+    document.getElementById("row-modal").classList.add("hidden");
+    document.getElementById("row-modal").classList.remove("flex");
+  }
+
+  document.getElementById("row-close").addEventListener("click", closeRowModal);
+  document.getElementById("row-cancel").addEventListener("click", closeRowModal);
+  document.getElementById("row-modal").addEventListener("click", e => {
+    if (e.target.id === "row-modal") closeRowModal();
+  });
+
+  // Delegate Add / Edit / Delete buttons
+  document.addEventListener("click", async e => {
+    const target = e.target.closest("[data-add], [data-edit], [data-del]");
+    if (!target) return;
+
+    if (target.dataset.add) {
+      const kind = target.dataset.add;
+      // Categories are needed for the rule modal, but other entities may
+      // open before categories have loaded -- so ensure they're cached.
+      if (kind === "rule" && !categories.length) await loadTable("cat");
+      openRowModal(kind, null);
+      return;
+    }
+    if (target.dataset.edit) {
+      const kind = target.dataset.edit;
+      const row  = rowsById[kind][target.dataset.id];
+      if (!row) return;
+      if (kind === "rule" && !categories.length) await loadTable("cat");
+      openRowModal(kind, row);
+      return;
+    }
+    if (target.dataset.del) {
+      const kind = target.dataset.del;
+      const id   = target.dataset.id;
+      const row  = rowsById[kind][id];
+      const label = row ? (row.name || row.match_text) : id;
+      if (!confirm(`Delete ${ENTITIES[kind].title} "${label}"?`)) return;
+      const resp = await fetch(ENTITIES[kind].detail(id), {
+        method: "DELETE",
+        headers: { "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        alert(`Delete failed: ${data.detail || data.error || resp.status}`);
+        return;
+      }
+      await Promise.all([loadTable(kind), refreshSummary()]);
+    }
+  });
+
+  document.getElementById("row-form").addEventListener("submit", async e => {
+    e.preventDefault();
+    const form   = e.currentTarget;
+    const kind   = form.elements.kind.value;
+    const id     = form.elements.id.value;
+    const entity = ENTITIES[kind];
+    const payload = entity.collect(form);
+    const err = document.getElementById("row-error");
+    err.classList.add("hidden");
+    try {
+      const url    = id ? entity.detail(id) : entity.list;
+      const method = id ? "PATCH" : "POST";
+      const resp = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        credentials: "same-origin",
+        body: JSON.stringify(payload),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        err.textContent = data.detail || data.error || JSON.stringify(data) || `HTTP ${resp.status}`;
+        err.classList.remove("hidden");
+        return;
+      }
+      closeRowModal();
+      // Categories drive the rule dropdown, so reload categories when one
+      // changes; rule rows resolve a category brief, so reload rules when
+      // a category changes too.
+      await Promise.all([
+        loadTable(kind),
+        kind === "cat" ? loadTable("rule") : Promise.resolve(),
+        refreshSummary(),
+      ]);
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.classList.remove("hidden");
+    }
+  });
+
+  window.addEventListener("load", async () => {
+    await refreshSummary();
+    await loadTable("cat");
+    await loadTable("rule");
+    await loadTable("ignore");
+  });
 </script>
 {% endblock %}

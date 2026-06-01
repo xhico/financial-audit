@@ -2,15 +2,18 @@
 # Date: May 27, 2026
 """URL configuration for the finance dashboard API."""
 
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from finance.api import (
     AccountsView,
     CashflowView,
     CategoriseBulkView,
     CategoriseMatchingView,
-    CategoryListView,
+    CategoryRuleViewSet,
+    CategoryViewSet,
     ExpensesView,
+    IgnoreRuleViewSet,
     IncomeView,
     InvestmentsView,
     NetWorthView,
@@ -24,6 +27,14 @@ from finance.api import (
 )
 
 app_name = "finance"
+
+# A DRF router gives every viewset the standard list/create/retrieve/update/
+# destroy URLs without manually wiring each path. The trailing slash is
+# kept to match the rest of the API.
+router = DefaultRouter()
+router.register(r"categories", CategoryViewSet, basename="categories")
+router.register(r"category-rules", CategoryRuleViewSet, basename="category-rules")
+router.register(r"ignore-rules", IgnoreRuleViewSet, basename="ignore-rules")
 
 urlpatterns = [
     path("dashboard/overview/", OverviewView.as_view(), name="overview"),
@@ -45,9 +56,9 @@ urlpatterns = [
         name="transactions-categorise-bulk",
     ),
     path("transactions/<int:pk>/", TransactionDetailView.as_view(), name="transaction-detail"),
-    path("categories/", CategoryListView.as_view(), name="categories"),
     path("upload/", UploadView.as_view(), name="upload"),
     path("portfolio-snapshots/", PortfolioSnapshotView.as_view(), name="portfolio-snapshots"),
     path("reset/", ResetView.as_view(), name="reset"),
     path("seed/", SeedView.as_view(), name="seed"),
+    path("", include(router.urls)),
 ]

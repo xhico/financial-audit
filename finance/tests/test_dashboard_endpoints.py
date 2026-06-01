@@ -15,6 +15,7 @@ from finance.models import (
     BalanceSnapshot,
     Category,
     CategoryRule,
+    IgnoreRule,
     PortfolioSnapshot,
     StatementImport,
     Transaction,
@@ -436,8 +437,140 @@ def test_categories_endpoint_lists_known_categories(api_client, seeded):
     assert response.status_code == 200
     names = {row["name"] for row in response.data}
     assert {"Salary", "Groceries", "Tax"} <= names
-    # Every row carries the three brief fields the edit dropdown needs
-    assert all(set(row) == {"id", "name", "kind"} for row in response.data)
+    # Every row carries the brief fields the edit dropdown needs (id, name,
+    # kind). The full serializer also exposes parent for the Seed GUI; both
+    # subsets must always be present.
+    for row in response.data:
+        assert {"id", "name", "kind"} <= set(row)
+
+
+@pytest.mark.django_db
+def test_category_viewset_crud_lifecycle(api_client):
+    """
+    The CategoryViewSet supports list / create / update / delete.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    # Create
+    response = api_client.post(
+        "/api/categories/",
+        data={"name": "Hobbies", "kind": "expense"},
+        format="json",
+    )
+    assert response.status_code == 201
+    pk = response.data["id"]
+    assert Category.objects.filter(pk=pk).exists()
+
+    # Update (rename + change kind)
+    response = api_client.patch(
+        f"/api/categories/{pk}/",
+        data={"name": "Side projects", "kind": "investment"},
+        format="json",
+    )
+    assert response.status_code == 200
+    Category.objects.get(pk=pk)
+    assert Category.objects.get(pk=pk).name == "Side projects"
+    assert Category.objects.get(pk=pk).kind == "investment"
+
+    # Delete
+    response = api_client.delete(f"/api/categories/{pk}/")
+    assert response.status_code == 204
+    assert not Category.objects.filter(pk=pk).exists()
+
+
+@pytest.mark.django_db
+def test_category_rule_viewset_crud_lifecycle(api_client):
+    """
+    The CategoryRuleViewSet supports list / create / update / delete and
+    accepts category_id on write.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    cat = Category.objects.create(name="Online shopping", kind=Category.Kind.EXPENSE)
+    other = Category.objects.create(name="Other", kind=Category.Kind.EXPENSE)
+
+    # Create
+    response = api_client.post(
+        "/api/category-rules/",
+        data={
+            "match_text": "ACME",
+            "sign": "debit",
+            "scope": "",
+            "category_id": cat.id,
+            "priority": 50,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    pk = response.data["id"]
+    rule = CategoryRule.objects.get(pk=pk)
+    assert rule.match_text == "ACME"
+    assert rule.category_id == cat.id
+
+    # The read response embeds the category brief
+    response = api_client.get(f"/api/category-rules/{pk}/")
+    assert response.status_code == 200
+    assert response.data["category"]["name"] == "Online shopping"
+
+    # Update: switch the category and the priority
+    response = api_client.patch(
+        f"/api/category-rules/{pk}/",
+        data={"category_id": other.id, "priority": 75},
+        format="json",
+    )
+    assert response.status_code == 200
+    rule.refresh_from_db()
+    assert rule.category_id == other.id
+    assert rule.priority == 75
+
+    # Delete
+    response = api_client.delete(f"/api/category-rules/{pk}/")
+    assert response.status_code == 204
+    assert not CategoryRule.objects.filter(pk=pk).exists()
+
+
+@pytest.mark.django_db
+def test_ignore_rule_viewset_crud_lifecycle(api_client):
+    """
+    The IgnoreRuleViewSet supports list / create / update / delete.
+
+    Args:
+        api_client (APIClient): Authenticated client
+
+    Returns:
+        None
+    """
+
+    response = api_client.post(
+        "/api/ignore-rules/",
+        data={"match_text": "NOISE", "note": "test"},
+        format="json",
+    )
+    assert response.status_code == 201
+    pk = response.data["id"]
+    assert IgnoreRule.objects.filter(pk=pk).exists()
+
+    response = api_client.patch(
+        f"/api/ignore-rules/{pk}/",
+        data={"note": "updated"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert IgnoreRule.objects.get(pk=pk).note == "updated"
+
+    response = api_client.delete(f"/api/ignore-rules/{pk}/")
+    assert response.status_code == 204
+    assert not IgnoreRule.objects.filter(pk=pk).exists()
 
 
 @pytest.mark.django_db
