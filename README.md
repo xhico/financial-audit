@@ -23,12 +23,17 @@ tests, CI and automated database backups.
 - **Edit anything** inline from `/transactions`: change date / description /
   amount / balance / category, and optionally apply the same category to
   every similar uncategorised row in one go.
+- **Bulk-categorise** from `/transactions`: tick row checkboxes (selection
+  persists across pagination), pick a category in the floating bar, hit
+  Apply.
 - **Browser-driven workflow** on `/upload`, `/seed`, `/investments` so the
   whole monthly refresh can be done without docker exec or SSH:
   - Drop bank PDFs and the Degiro CSV in the upload zone.
   - Set the broker portfolio's current value on the Investments page so
     Unrealised gain matches Degiro's Total L/P.
-  - Manage classification rules + ignore patterns from the Seed page.
+  - Manage classification rules + ignore patterns from the Seed page via
+    a structured GUI (Add / Edit / Delete per row) or an inline JSON
+    editor; import / export the whole config as `seed_rules.json`.
 - **Reset everything** from the Upload page's Danger zone (typed
   confirmation) so a re-import always starts clean.
 
@@ -65,9 +70,9 @@ tests, CI and automated database backups.
    enter the Degiro portfolio total (Saldo da conta). The Investments page
    shows Net invested vs Current value vs Unrealised gain; Net worth picks
    up the broker value automatically.
-5. (Occasional) **Open `/seed/`** to download the live `seed_rules.json`,
-   edit it locally to add new vendor rules, and drag the updated file back
-   into the page.
+5. (Occasional) **Open `/seed/`** to manage classification rules: add /
+   edit / delete from the structured tables, paste a JSON edit into the
+   advanced editor, or round-trip the whole config as `seed_rules.json`.
 
 ## Pages and APIs
 
@@ -80,11 +85,15 @@ tests, CI and automated database backups.
 | `/net-worth/`    | `/api/dashboard/net-worth/`             | Business / Personal / House / Savings / Investments tiles; mortgage informational.             |
 | `/investments/`  | `/api/dashboard/investments/`           | Cost basis (cumulative Investment txns) vs Current value vs Unrealised gain; per-deposit flow. |
 | `/accounts/`     | `/api/dashboard/accounts/`              | One row per non-brokerage account with its latest balance.                                     |
-| `/transactions/` | `/api/transactions/`                    | Paginated, filterable list. Each row has an inline edit modal.                                 |
+| `/transactions/` | `/api/transactions/`                    | Paginated, filterable list. Each row has an inline edit modal; checkbox multi-select drives bulk categorise. |
 | `/upload/`       | `POST /api/upload/`                     | Multi-file picker: dispatches `.pdf` → bank importer, `.csv` → Degiro importer.                |
-| `/seed/`         | `GET / POST /api/seed/`                 | Inspect, download and replace categories / rules / ignore patterns.                            |
+| `/seed/`         | `GET / POST /api/seed/`                 | Inspect, download and replace the whole seed config. Per-entity CRUD lives on the routes below.|
+| —                | `/api/categories/`                      | List + create / `<id>/` retrieve / update / delete. Backs the Seed page's Categories table.    |
+| —                | `/api/category-rules/`                  | List + create / `<id>/` retrieve / update / delete. Backs the Rules table.                     |
+| —                | `/api/ignore-rules/`                    | List + create / `<id>/` retrieve / update / delete. Backs the Ignore patterns table.           |
 | —                | `POST /api/portfolio-snapshots/`        | Upsert a manual portfolio snapshot (account, as_of, market_value).                             |
 | —                | `POST /api/transactions/categorise-matching/` | Bulk-apply a category to every uncategorised description match.                          |
+| —                | `POST /api/transactions/categorise-bulk/` | Apply a category to an explicit list of transaction ids (drives the multi-select bar).        |
 | —                | `POST /api/reset/`                      | Typed-confirmation wipe of accounts, transactions, statements and snapshots.                   |
 
 ## Data model
@@ -263,7 +272,7 @@ PRs land.
 ## Releases
 
 Releases are SemVer tags cut from `main`; they are version markers and do
-not trigger deploys (merging to `main` does). Current line: `v0.2.1`.
+not trigger deploys (merging to `main` does). Current line: `v0.3.0`.
 
 ```sh
 make release VERSION=0.3.0
