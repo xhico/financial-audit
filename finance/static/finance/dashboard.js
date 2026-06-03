@@ -90,7 +90,9 @@ window.dashboard = (function () {
     };
   }
 
-  // Apply (or re-apply) Chart.js defaults from the current theme
+  // Apply (or re-apply) Chart.js defaults from the current theme. The goal
+  // is a "sleek" look: no gridlines, no axis borders, sparse ticks, smooth
+  // lines -- the data does the work, the chrome stays out of the way.
   function themeChartJs() {
     if (!window.Chart) return;
     const t = chartTokens();
@@ -99,6 +101,8 @@ window.dashboard = (function () {
     Chart.defaults.font.size = 12;
     Chart.defaults.color = t.label;
     Chart.defaults.borderColor = t.grid;
+
+    // Tooltip: a small floating pill with strong contrast against the page
     Chart.defaults.plugins.tooltip.padding = 10;
     Chart.defaults.plugins.tooltip.cornerRadius = 12;
     Chart.defaults.plugins.tooltip.backgroundColor = t.tooltipBg;
@@ -106,13 +110,34 @@ window.dashboard = (function () {
     Chart.defaults.plugins.tooltip.bodyColor = t.tooltipBody;
     Chart.defaults.plugins.tooltip.titleFont = { weight: "600" };
     Chart.defaults.plugins.tooltip.bodySpacing = 4;
+    Chart.defaults.plugins.tooltip.displayColors = true;
+    Chart.defaults.plugins.tooltip.boxWidth = 8;
+    Chart.defaults.plugins.tooltip.boxHeight = 8;
+    Chart.defaults.plugins.tooltip.usePointStyle = true;
+
+    // Legend: subtle pill-style markers, generous spacing
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.boxWidth = 8;
     Chart.defaults.plugins.legend.labels.padding = 16;
+
+    // Bars + lines: rounded bars, smoother curves, no dots until hover
     Chart.defaults.elements.bar.borderRadius = 8;
+    Chart.defaults.elements.bar.borderSkipped = false;
     Chart.defaults.elements.line.borderWidth = 2.5;
+    Chart.defaults.elements.line.tension = 0.4;
+    Chart.defaults.elements.line.cubicInterpolationMode = "monotone";
     Chart.defaults.elements.point.radius = 0;
     Chart.defaults.elements.point.hoverRadius = 5;
+    Chart.defaults.elements.point.hoverBorderWidth = 0;
+
+    // Scales: the big visual change. Drop gridlines and axis borders;
+    // every concrete scale (linear, category, ...) inherits from
+    // `Chart.defaults.scale` so this one block covers all chart types.
+    Chart.defaults.scale.grid.display = false;
+    Chart.defaults.scale.border.display = false;
+    Chart.defaults.scale.ticks.padding = 8;
+    Chart.defaults.scale.ticks.maxTicksLimit = 5;
+    Chart.defaults.scale.ticks.color = t.label;
   }
 
   // Force every Chart instance on the page to redraw with the new defaults
