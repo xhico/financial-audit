@@ -51,9 +51,63 @@ def test_dashboard_page_redirects_when_anonymous(path):
     """
 
     response = Client().get(path)
-    # @login_required redirects (302) to LOGIN_URL when not authenticated
+    # @login_required redirects (302) to LOGIN_URL when not authenticated.
+    # Project ships its own dashboard-styled login at /login/, not the
+    # default /admin/login/.
     assert response.status_code == 302
-    assert "/admin/login/" in response["Location"]
+    assert "/login/" in response["Location"]
+
+
+@pytest.mark.django_db
+def test_login_page_renders_custom_template():
+    """
+    GET /login/ serves the project's custom login template, not the
+    Django admin login. The page should mention FinancialAudit and the
+    Sign in heading, and must NOT use admin/login.html.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    response = Client().get("/login/")
+
+    assert response.status_code == 200
+    template_names = {t.name for t in response.templates if t.name}
+    assert "registration/login.html" in template_names
+    # Sanity-check: the bento tile class and brand string are in the body
+    body = response.content.decode("utf-8")
+    assert "FinancialAudit" in body
+    assert "Sign in" in body
+
+
+@pytest.mark.django_db
+def test_logout_view_requires_post():
+    """
+    The logout endpoint accepts POST (Django 5 deprecated GET-based
+    logout), so the sidebar wraps the Sign out control in a form.
+
+    Args:
+        None
+
+    Returns:
+        None
+    """
+
+    User.objects.create_user(username="bye", password="pw")
+    client = Client()
+    client.login(username="bye", password="pw")
+
+    # GET on /logout/ is rejected with 405 since Django 5
+    response = client.get("/logout/")
+    assert response.status_code == 405
+
+    response = client.post("/logout/")
+    # next_page="login" -> redirected to /login/ after a successful logout
+    assert response.status_code == 302
+    assert "/login/" in response["Location"]
 
 
 @pytest.mark.django_db

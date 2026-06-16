@@ -72,9 +72,13 @@
         </button>
       </div>
       <div class="flex items-center gap-3 px-2 text-xs text-zinc-500 dark:text-zinc-400">
-        <a href="/admin/"        class="hover:text-zinc-900 dark:hover:text-zinc-100">Admin</a>
+        <a href="/admin/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Admin</a>
         <span class="text-zinc-300 dark:text-zinc-700">·</span>
-        <a href="/admin/logout/" class="hover:text-zinc-900 dark:hover:text-zinc-100">Sign out</a>
+        {# Django 5 requires POST for logout; wrap a styled button in a CSRF-protected form #}
+        <form action="{% url 'logout' %}" method="post" class="inline">
+          {% csrf_token %}
+          <button type="submit" class="hover:text-zinc-900 dark:hover:text-zinc-100">Sign out</button>
+        </form>
       </div>
     </div>
   </aside>
